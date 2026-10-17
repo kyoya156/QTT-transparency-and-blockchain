@@ -126,3 +126,29 @@ trình**. Đây là câu nên nói với mentor trước khi bàn tới chuyện
 - Code trong thư mục deploy **giống hệt** source hiện tại → không cần deploy lại.
 - **Rủi ro khi demo:** sandbox ngủ khi không có truy cập. Lần gọi đầu sau khi ngủ
   mất **hơn 25 giây** (lần hai: 0,21 giây). Nên mở link trước giờ demo 5 phút.
+
+---
+
+## 8. Nợ kỹ thuật đã biết
+
+Không phải suy đoán — đây là những chỗ đã kiểm tra và biết còn yếu.
+
+| # | Vấn đề | Ảnh hưởng thật | Chi phí sửa |
+|---|---|---|---|
+| 1 | Header `Server` lộ `Python/3.13` | lộ stack — **đúng lỗi đã phê bình ở web Quỹ** | 3 dòng |
+| 2 | SQL rải trong 15 lệnh `execute()` ở `app.py` | chuyển Postgres phải sửa 15 nơi rải rác | ~0,5 ngày |
+| 3 | `LIKE` không phân biệt hoa thường chỉ đúng trên SQLite | chuyển Postgres là **hỏng tìm kiếm**, test không bắt được | ~1 giờ |
+| 4 | Không có rate limit | API công khai bị gọi liên tục là sập instance nhỏ | ~1 giờ (nginx) |
+| 5 | 77 test chỉ chạy trên SQLite | không phát hiện lỗi portability | ~1 ngày |
+| 6 | Chưa test 1 triệu dòng | chưa biết SLO thật, chỉ ngoại suy từ 238k | ~0,5 ngày |
+| 7 | RBAC mới seed, chưa cưỡng chế | không có phân quyền thật, chỉ có bảng `roles` | ~1–2 ngày |
+| 8 | Chưa có đóng kỳ / snapshot | không so sánh được số giữa các kỳ | ~1 ngày |
+
+**Thứ tự nên làm:** 1 → 2 → 3 → 4 → 6 → 5 → 8 → 7.
+
+Lý do thứ tự này: làm từ việc **rủi ro thấp, hồi vốn nhanh** trước. Việc 1 chỉ 3 dòng
+và xoá được một điểm mâu thuẫn trong báo cáo. Việc 2–3 là điều kiện để chuyển
+Postgres, mà không chuyển sớm thì cũng không gấp. Việc 7 tốn nhất và chỉ cần khi có
+người dùng thật.
+
+**Không làm trước demo.** Sửa code lúc 18:30 cho buổi demo 20:00 là tự tạo sự cố.
