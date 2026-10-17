@@ -96,6 +96,9 @@ mình cũng không nên lộ.
 
 ## 3. Chọn kiến trúc nào
 
+> Phân tích riêng cho phần database — vì sao giữ SQLite dù chạy trên AWS, và khi nào
+> mới chuyển Postgres — nằm ở `QUYET_DINH_DATABASE.md`. Đọc kèm mục này.
+
 | Phương án | Hợp với | Ưu | Nhược | Chi phí ước tính |
 |---|---|---|---|---|
 | **A. Lightsail + nginx** | demo, nộp bài, chạy thật quy mô nhỏ | đơn giản nhất, giá cố định, có sẵn static IP, SSL dễ | 1 máy, không HA, tự vá OS | **~$5–7/tháng** |
