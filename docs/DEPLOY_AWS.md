@@ -9,8 +9,9 @@ Trạng thái hiện tại: chạy trên sandbox tạm, không phải hạ tần
 
 App này **dễ deploy hơn hầu hết ứng dụng web** vì ba lý do:
 
-- **0 thư viện bên thứ ba.** Chỉ cần Python 3.11+ là chạy. Không `pip install`, không
-  build step, không node_modules.
+- **Runtime không có phụ thuộc ngoài.** Chỉ cần Python 3.11+ là chạy app và nhập CSV.
+  Riêng đường nhập Excel `.xlsx` cần `openpyxl` (`requirements.txt`), nhưng trên server
+  không cần đường đó vì database đã dựng sẵn. Không có bước build, không node_modules.
 - **Không có ghi.** Database mở `mode=ro`, mọi POST/PUT/DELETE trả 405. Nghĩa là
   không có transaction, không có lock, không có nguy cơ hỏng dữ liệu do người dùng.
 - **Đã tự set security header.** CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options:

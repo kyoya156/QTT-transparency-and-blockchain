@@ -1,0 +1,12 @@
+# Phụ thuộc của dự án.
+#
+# Chạy ứng dụng và nhập sao kê CSV: KHÔNG cần cài gì.
+# app.py chỉ dùng thư viện chuẩn của Python (sqlite3, http.server, json, csv).
+#
+# Chỉ cần cài thêm khi nhập file Excel (.xlsx):
+#   pip install -r requirements.txt
+#
+# build_database.py import openpyxl bên trong nhánh xử lý XLSX, nên đường CSV
+# vẫn chạy được trên máy chưa cài gì.
+
+openpyxl>=3.1
