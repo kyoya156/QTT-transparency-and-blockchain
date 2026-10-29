@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light" />
+<title>Nuôi Em · Quản trị đối soát</title>
+<meta name="description" content="Hàng đợi ngoại lệ, tra cứu mã NE và trạng thái toàn vẹn dữ liệu cho Quỹ Nuôi Em." />
+<link rel="icon" href="/assets/nuoi-em-logo.webp" />
+<link rel="stylesheet" href="/admin.css" />
+</head>
+<body>
+
+<a class="skip" href="#main">Bỏ qua điều hướng</a>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <img class="logo" src="/assets/nuoi-em-logo.webp" alt="" width="32" height="32" />
+    <div class="brand">
+      <strong>Nuôi Em · Quản trị</strong>
+      <span>Hàng đợi đối soát</span>
+    </div>
+    <a class="topbar-link" href="/">Bảng công khai</a>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- One box, several kinds of identifier. Staff receive a code from a
+       Facebook message, a phone call or a bank screenshot, so the input type is
+       detected server-side rather than chosen from a dropdown. -->
+  <section class="search-block">
+    <h1 class="page-title">Tra cứu</h1>
+    <form id="search-form" class="search-form" role="search">
+      <label class="sr-only" for="q">Mã cần tra cứu</label>
+      <input id="q" name="q" type="search" inputmode="text" autocomplete="off"
+             spellcheck="false" maxlength="64"
+             placeholder="NE01156 · NE01156S · ACN… · số tham chiếu" />
+      <button type="submit">Tra</button>
+    </form>
+    <p class="hint" id="search-hint">
+      Hệ thống tự nhận dạng loại mã. Không tra cứu được bằng số điện thoại.
+    </p>
+  </section>
+
+  <section id="result" class="result" hidden aria-live="polite"></section>
+
+  <section class="metrics" id="metrics" aria-label="Chỉ số chính"></section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>Hàng đợi theo nguyên nhân</h2>
+      <p class="sub">Mỗi dòng là một quyết định, không phải một bản ghi.</p>
+    </div>
+    <div id="queue" class="queue"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>Tiền vào chưa gán mã, theo năm</h2>
+      <p class="sub">Cột càng dài thì năm đó càng nhiều dòng chưa xử lý.</p>
+    </div>
+    <div id="years" class="years"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>Nguồn dữ liệu và toàn vẹn</h2>
+    </div>
+    <div id="status" class="status"></div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <p>
+    Số tiền theo từng mã NE là <strong>số suy ra</strong> từ nội dung chuyển khoản,
+    không phải số liệu Quỹ đã xác nhận. Nội dung sao kê thô và số tài khoản không
+    được trả ra qua API này.
+  </p>
+</footer>
+
+<script src="/admin.js"></script>
+</body>
+</html>

@@ -644,6 +644,50 @@ class ApiSecurityTests(unittest.TestCase):
         _, payload, _ = self.get("/api/ne?ne=NE00001S")
         self.assertGreater(payload["allocation_count"], 0)
 
+    def test_base_code_does_not_absorb_meal_suffix_variants(self):
+        """NE00001 and NE00001S are two codes, not one code with a decoration.
+
+        An earlier version matched `ne_code LIKE 'CODE%'`, which folded every
+        S/T variant into the base code and reported one total for what are
+        separate sponsorships. The base code must report only its own rows, and
+        the variants must be listed apart from it.
+        """
+        _, payload, _ = self.get("/api/ne?ne=NE00001")
+        self.assertEqual(payload["allocation_count"], 0)
+        self.assertEqual([v["ne_code"] for v in payload["variants"]], ["NE00001S"])
+
+    def test_admin_search_normalises_a_bare_number(self):
+        _, payload, _ = self.get("/api/admin/search?q=1156")
+        self.assertEqual(payload["kind"], "ne")
+        self.assertEqual(payload["code"], "NE01156")
+
+    def test_admin_search_keeps_the_meal_suffix(self):
+        _, payload, _ = self.get("/api/admin/search?q=ne1s")
+        self.assertEqual(payload["code"], "NE00001S")
+
+    def test_admin_search_refuses_phone_numbers(self):
+        """A phone number is not a lookup key, and pretending otherwise would
+        turn the box into a personal-data oracle over raw bank memos."""
+        _, payload, _ = self.get("/api/admin/search?q=0912345678")
+        self.assertEqual(payload["kind"], "blocked")
+        self.assertNotIn("code", payload)
+
+    def test_admin_queue_reports_one_row_per_cause(self):
+        _, payload, _ = self.get("/api/admin/queue")
+        keys = {bucket["key"] for bucket in payload["buckets"]}
+        self.assertEqual(keys, {"inbound_no_code", "code_no_profile", "outbound_unclassified"})
+        for bucket in payload["buckets"]:
+            self.assertIn("count", bucket)
+            self.assertIn("amount", bucket)
+
+    def test_admin_page_is_served_as_html(self):
+        with urlopen(f"http://127.0.0.1:{self.port}/admin", timeout=5) as response:
+            body = response.read().decode("utf-8")
+            self.assertEqual(response.status, 200)
+            self.assertIn("text/html", response.headers["Content-Type"])
+        self.assertIn("Quản trị", body)
+        self.assertNotIn("Bảng điều khiển minh bạch", body)
+
     def test_sql_injection_is_inert(self):
         _, payload, _ = self.get("/api/transactions?q=%27%20OR%201%3D1--")
         self.assertEqual(payload["count"], 0)
@@ -689,6 +733,8 @@ class ApiSecurityTests(unittest.TestCase):
             "/api/exceptions",
             "/api/approvals",
             "/api/metadata",
+            "/api/admin/queue",
+            "/api/admin/search?q=NE00001",
         ):
             _, payload, _ = self.get(path)
             keys = collect_keys(payload, set())

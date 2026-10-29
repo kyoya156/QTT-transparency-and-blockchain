@@ -324,6 +324,11 @@ def ne_payload(params: dict) -> dict:
     if not code.startswith("NE"):
         code = f"NE{code.zfill(5)}"
     with closing(database_connection()) as conn:
+        # Exact match only. The earlier `ne_code LIKE 'CODE%'` quietly folded
+        # NE00001S and NE00001T into NE00001, which are two separate codes with
+        # two separate sponsors — one boarding pupil eating twice a day. Merging
+        # them misstates both the total and the donor count, so the variants are
+        # listed separately instead of summed.
         allocations = rows_to_dicts(
             conn.execute(
                 """
@@ -331,11 +336,22 @@ def ne_payload(params: dict) -> dict:
                        ta.allocated_amount_computed, ta.allocation_policy, ta.match_status
                 FROM transaction_allocations ta
                 JOIN bank_transactions t ON t.id = ta.transaction_id
-                WHERE ta.ne_code = ? OR ta.ne_code LIKE ?
+                WHERE ta.ne_code = ?
                 ORDER BY COALESCE(t.tx_time,'') DESC
                 LIMIT ?
                 """,
-                (code, f"{code}%", MAX_PAGE_SIZE),
+                (code, MAX_PAGE_SIZE),
+            ).fetchall()
+        )
+        variants = rows_to_dicts(
+            conn.execute(
+                """
+                SELECT ne_code, COUNT(*) AS rows, COALESCE(SUM(allocated_amount_computed), 0) AS total
+                FROM transaction_allocations
+                WHERE ne_code LIKE ? AND ne_code <> ?
+                GROUP BY ne_code ORDER BY ne_code
+                """,
+                (f"{code}%", code),
             ).fetchall()
         )
         registry = rows_to_dicts(
@@ -353,13 +369,25 @@ def ne_payload(params: dict) -> dict:
             ).fetchall()
         )
     total = sum(a["allocated_amount_computed"] for a in allocations)
+    first_seen = min((a["tx_time"] for a in allocations if a["tx_time"]), default=None)
+    last_seen = max((a["tx_time"] for a in allocations if a["tx_time"]), default=None)
+    # The suffix is part of the code, not decoration: NE00001S is lunch and
+    # NE00001T is dinner, and they are two different sponsorships.
+    suffix = code[-1] if code[-1:] in {"S", "T"} else ""
+    meal_plan = {"S": "lunch", "T": "dinner"}.get(suffix, "chưa phân biệt S/T")
     return {
         "ne_code": code,
         "allocation_count": len(allocations),
         "total_allocated": total,
         "allocations": allocations,
+        "variants": variants,
         "registry": registry,
         "registry_available": bool(registry),
+        "first_seen": first_seen,
+        "last_seen": last_seen,
+        "distinct_transactions": len({a["provider_tx_id"] for a in allocations}),
+        "meal_plan": meal_plan,
+        "status": "has_profile" if registry else ("has_money_no_profile" if allocations else "unknown_code"),
     }
 
 
@@ -493,6 +521,135 @@ def coverage_payload(_params) -> dict:
         return _coverage(conn)
 
 
+# --------------------------------------------------------------------------
+# Admin dashboard
+#
+# The public dashboard answers "how much money moved". The admin dashboard
+# answers a different question: "what must a person do today". So it is built
+# around the work queue first and the lookup second, and every number on it is
+# a count of rows somebody can open.
+# --------------------------------------------------------------------------
+
+
+def _bucket(conn, key: str, label: str, count: int, amount: int, action: str) -> dict:
+    return {"key": key, "label": label, "count": count, "amount": amount, "action": action}
+
+
+def admin_queue_payload(_params) -> dict:
+    """Work queue aggregated by cause, not one row per problem.
+
+    There are 125,713 unreconciled inbound rows. A queue with 125,713 entries is
+    not a control — nobody finishes it. Grouping by cause turns the backlog into
+    three decisions, each with the money at risk attached.
+    """
+    with closing(database_connection()) as conn:
+        no_code = conn.execute(
+            """
+            SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM bank_transactions
+            WHERE processing_status = 'needs_review'
+            """
+        ).fetchone()
+        outbound = conn.execute(
+            """
+            SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM bank_transactions
+            WHERE direction = 'outbound' AND processing_status <> 'matched'
+            """
+        ).fetchone()
+        # Codes that carry money but have no student record behind them. This is
+        # the one bucket that grows with every import and shrinks only when the
+        # student catalogue is imported.
+        orphan = conn.execute(
+            """
+            SELECT COUNT(DISTINCT ta.ne_code),
+                   COALESCE(SUM(ta.allocated_amount_computed), 0)
+            FROM transaction_allocations ta
+            WHERE ta.ne_code NOT IN (
+                SELECT ne_code FROM student_supports WHERE ne_code IS NOT NULL
+            )
+            """
+        ).fetchone()
+        by_year = conn.execute(
+            """
+            SELECT substr(tx_time, 1, 4) AS year,
+                   COUNT(*) AS count,
+                   COALESCE(SUM(amount), 0) AS amount
+            FROM bank_transactions
+            WHERE processing_status = 'needs_review' AND tx_time IS NOT NULL
+            GROUP BY year ORDER BY year
+            """
+        ).fetchall()
+
+        buckets = [
+            _bucket(conn, "inbound_no_code", "Dòng vào không tìm thấy mã NE",
+                    no_code[0], no_code[1], "Gán mã hoặc chuyển quỹ ẩn danh"),
+            _bucket(conn, "code_no_profile", "Mã có tiền nhưng chưa có hồ sơ",
+                    orphan[0], orphan[1], "Gắn hồ sơ học sinh"),
+            _bucket(conn, "outbound_unclassified", "Dòng ra chưa phân loại kế toán",
+                    outbound[0], outbound[1], "Nối với đề nghị thanh toán"),
+        ]
+        open_exceptions = scalar(
+            conn, "SELECT COUNT(*) FROM exception_queue WHERE status = 'open'"
+        )
+        pending = scalar(conn, "SELECT COUNT(*) FROM approval_tasks WHERE status = 'pending'")
+
+    buckets.sort(key=lambda b: b["amount"], reverse=True)
+    return {
+        "buckets": buckets,
+        "unmapped_by_year": [dict(r) for r in by_year],
+        "open_exceptions": open_exceptions,
+        "pending_approvals": pending,
+        "note": (
+            "Mỗi dòng là một quyết định, không phải một bản ghi. Số tiền là tiền "
+            "đang bị ảnh hưởng nếu dòng đó chưa được xử lý."
+        ),
+    }
+
+
+def admin_search_payload(params: dict) -> dict:
+    """One box, several kinds of identifier.
+
+    Fund staff receive a code from a Facebook message, a phone call or a bank
+    screenshot, so the box cannot assume the input type. Detection happens
+    server-side so the client never has to hold the rules.
+    """
+    raw = clean_query(params).strip()
+    if not raw:
+        return {"kind": "empty", "hint": "Nhập mã NE, mã ACN hoặc số tham chiếu."}
+
+    compact = raw.replace(" ", "").replace(".", "").upper()
+
+    if compact.startswith("NE") or (compact.isdigit() and len(compact) <= 6):
+        digits = compact[2:] if compact.startswith("NE") else compact
+        suffix = ""
+        if digits and digits[-1] in {"S", "T"}:
+            digits, suffix = digits[:-1], digits[-1]
+        if digits.isdigit() and 1 <= len(digits) <= 6:
+            code = f"NE{int(digits):05d}{suffix}"
+            return {"kind": "ne", "code": code, "input": raw}
+
+    if compact.startswith("ACN"):
+        return {"kind": "acn", "code": compact, "input": raw}
+
+    # A bare 9-11 digit number is a phone number. Donor phone numbers exist only
+    # inside raw bank memos, which this API deliberately cannot search, so the
+    # honest answer is that this lookup is not supported rather than "not found".
+    if compact.isdigit() and 9 <= len(compact) <= 11:
+        return {
+            "kind": "blocked",
+            "input": raw,
+            "hint": "Không tra cứu bằng số điện thoại: API không đọc nội dung sao kê thô.",
+        }
+
+    if compact.isdigit():
+        return {"kind": "reference", "code": compact, "input": raw}
+
+    return {
+        "kind": "unknown",
+        "input": raw,
+        "hint": "Chưa hỗ trợ tra cứu theo tên trường hoặc tỉnh vì danh mục trường đang trống.",
+    }
+
+
 API_ROUTES = {
     "/api/summary": summary_payload,
     "/api/transactions": transactions_payload,
@@ -503,6 +660,15 @@ API_ROUTES = {
     "/api/audit": audit_payload,
     "/api/coverage": coverage_payload,
     "/api/metadata": metadata_payload,
+    "/api/admin/queue": admin_queue_payload,
+    "/api/admin/search": admin_search_payload,
+}
+
+# Extension-less routes that map to a real file. Without this the fallback
+# would serve index.html and the admin page would silently be the public page.
+PAGE_ROUTES = {
+    "/admin": "admin.html",
+    "/admin/": "admin.html",
 }
 
 
@@ -532,7 +698,10 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _static(self, request_path: str) -> None:
-        relative = "index.html" if request_path == "/" else request_path.lstrip("/")
+        if request_path in PAGE_ROUTES:
+            relative = PAGE_ROUTES[request_path]
+        else:
+            relative = "index.html" if request_path == "/" else request_path.lstrip("/")
         candidate = (STATIC_DIR / relative).resolve()
         try:
             candidate.relative_to(STATIC_DIR.resolve())

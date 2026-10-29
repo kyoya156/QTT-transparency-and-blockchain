@@ -1,0 +1,407 @@
+/* Nuôi Em · admin dashboard
+ *
+ * Standalone rather than an import of styles.css, so a change to the public
+ * page cannot quietly break the internal tool. The palette is copied, not
+ * shared, on purpose: same product, different surface.
+ *
+ * Mobile-first again, for the same reason as the public page — the provincial
+ * officer opening this is on a phone, standing in a school office.
+ */
+
+:root {
+  color-scheme: light;
+
+  --bg: #fff8ef;
+  --surface: #ffffff;
+  --surface-2: #fff3df;
+  --border: #f0dcc2;
+  --text: #34261c;
+  --muted: #756354;
+  --accent: #df6a2e;
+  --accent-soft: #fff0df;
+  --warn: #a35b12;
+  --warn-soft: #fff4d9;
+  --danger: #b3261e;
+  --danger-soft: #fdecea;
+  --money: #16754a;
+  --money-soft: #e7f5ee;
+
+  --radius: 14px;
+  --gap: 14px;
+  --maxw: 1040px;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+.skip {
+  position: absolute; left: -999px; top: 0;
+  background: var(--surface); color: var(--text);
+  padding: 10px 14px; z-index: 100; border-radius: 0 0 8px 0;
+}
+.skip:focus { left: 0; }
+
+/* ------------------------------------------------------------------ topbar */
+
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 20;
+}
+
+.topbar-inner {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo { border-radius: 8px; flex: none; }
+
+.brand { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.brand strong { font-size: 15px; font-weight: 600; }
+.brand span { font-size: 12px; color: var(--muted); }
+
+.topbar-link {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--accent);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+.topbar-link:hover { background: var(--accent-soft); }
+
+/* ------------------------------------------------------------------- shell */
+
+main {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 18px 16px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.page-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+
+/* ------------------------------------------------------------------ search */
+
+.search-form {
+  display: flex;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 5px 5px 16px;
+  align-items: center;
+}
+
+.search-form:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.search-form input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--text);
+  padding: 8px 0;
+}
+.search-form input::placeholder { color: #b09a86; }
+
+.search-form button {
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 9px 20px;
+  cursor: pointer;
+}
+.search-form button:hover { background: #c85a22; }
+
+.hint { margin: 8px 2px 0; font-size: 12.5px; color: var(--muted); }
+.hint.warn { color: var(--warn); }
+
+/* ----------------------------------------------------------------- metrics */
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.metric {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
+.metric .label {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 4px;
+  line-height: 1.35;
+}
+
+.metric .value {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -.01em;
+}
+
+.metric .note { font-size: 11.5px; color: var(--muted); margin: 4px 0 0; }
+.metric.risk .value { color: var(--danger); }
+.metric.ok .value { color: var(--money); }
+
+/* -------------------------------------------------------------------- card */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.card-head { margin-bottom: 12px; }
+.card-head h2 { font-size: 15px; font-weight: 600; margin: 0; }
+.card-head .sub { font-size: 12.5px; color: var(--muted); margin: 3px 0 0; }
+
+/* ------------------------------------------------------------------- queue */
+
+.queue { display: flex; flex-direction: column; gap: 2px; }
+
+.bucket {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.bucket:first-child { border-top: 0; padding-top: 2px; }
+
+.bucket .name { font-weight: 500; font-size: 14px; }
+.bucket .amount {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--money);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.bucket .meta {
+  grid-column: 1 / -1;
+  font-size: 12.5px;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.bucket .count {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-radius: 999px;
+  padding: 1px 9px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------------- years */
+
+.years { display: flex; flex-direction: column; gap: 7px; }
+
+.year-row {
+  display: grid;
+  grid-template-columns: 42px 1fr 78px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.year-row .yr { color: var(--muted); }
+
+.year-track {
+  display: block;
+  background: var(--surface-2);
+  border-radius: 999px;
+  height: 16px;
+  overflow: hidden;
+}
+
+.year-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  min-width: 3px;
+}
+
+/* Bar widths as classes, not inline styles: the server sends style-src 'self',
+ * so a style="" attribute would be dropped and every bar would render empty. */
+.w-0{width:0%}.w-5{width:5%}.w-10{width:10%}.w-15{width:15%}.w-20{width:20%}
+.w-25{width:25%}.w-30{width:30%}.w-35{width:35%}.w-40{width:40%}.w-45{width:45%}
+.w-50{width:50%}.w-55{width:55%}.w-60{width:60%}.w-65{width:65%}.w-70{width:70%}
+.w-75{width:75%}.w-80{width:80%}.w-85{width:85%}.w-90{width:90%}.w-95{width:95%}
+.w-100{width:100%}
+
+.year-row .n { text-align: right; color: var(--muted); }
+
+/* ------------------------------------------------------------------ result */
+
+.result {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.result-head {
+  padding: 16px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.result-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+
+.result-meta { font-size: 12.5px; color: var(--muted); width: 100%; }
+
+.badge {
+  border-radius: 999px;
+  padding: 3px 11px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge.warn { background: var(--warn-soft); color: var(--warn); }
+.badge.ok { background: var(--money-soft); color: var(--money); }
+.badge.muted { background: #f2ece4; color: var(--muted); }
+.badge.risk { background: var(--danger-soft); color: var(--danger); }
+
+.result-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+.block { padding: 14px 16px; border-top: 1px solid var(--border); }
+.block:first-child { border-top: 0; }
+.block h3 {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+
+.kv { display: grid; grid-template-columns: 116px 1fr; gap: 4px 10px; font-size: 13.5px; margin: 0; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; font-weight: 500; word-break: break-word; }
+
+.empty {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 13px;
+  color: var(--muted);
+  background: #fffdfa;
+}
+.empty strong { color: var(--warn); }
+
+.tx { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tx th {
+  text-align: left;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 0 6px 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.tx td { padding: 7px 6px 7px 0; border-bottom: 1px solid #f7ecdd; }
+.tx tr:last-child td { border-bottom: 0; }
+.tx .num { text-align: right; white-space: nowrap; padding-right: 20px; }
+.tx .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+
+/* ------------------------------------------------------------------ status */
+
+.status { display: flex; flex-direction: column; gap: 8px; font-size: 13.5px; }
+.status-row { display: flex; gap: 8px; align-items: baseline; }
+.status-row .k { color: var(--muted); min-width: 132px; flex: none; }
+.status-row .v { font-weight: 500; word-break: break-word; }
+
+/* -------------------------------------------------------------------- foot */
+
+.foot {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 16px 40px;
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* -------------------------------------------------------------- responsive */
+
+@media (min-width: 560px) {
+  .metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .result-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .block:nth-child(2) { border-top: 0; }
+  .block:nth-child(odd) { border-right: 1px solid var(--border); }
+  .block.span { grid-column: 1 / -1; border-right: 0; }
+}
+
+@media (min-width: 860px) {
+  .bucket {
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+  }
+  .bucket .meta { grid-column: 1; }
+  .bucket .amount { font-size: 15px; }
+}
