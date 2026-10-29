@@ -43,18 +43,19 @@ trước, vì 125.713 dòng chưa đối soát không phải thứ đọc đư�
 nó phải được gom thành vài quyết định, mỗi quyết định kèm số tiền đang bị ảnh
 hưởng.
 
-Ba endpoint mới phục vụ trang này:
+Bốn endpoint mới phục vụ trang này:
 
 | Endpoint | Trả về |
 |---|---|
 | `/api/admin/queue` | hàng đợi gom theo nguyên nhân, kèm số dòng và số tiền |
+| `/api/admin/rows?bucket=&year=&cursor=` | các dòng trong một nguyên nhân, phân trang bằng keyset |
 | `/api/admin/search?q=` | tự nhận dạng loại mã (NE / ACN / số tham chiếu) |
 | `/api/ne?ne=` | hồ sơ một mã: dòng tiền, biến thể S/T, trạng thái hồ sơ |
 
 Ô tra cứu nhận **một** loại đầu vào, không bắt người dùng chọn dropdown, vì cán
 sự nhận mã từ tin nhắn Facebook, cuộc gọi hoặc ảnh chụp sao kê — không ai gõ
-đúng định dạng. Deep link `/admin?q=NE01156` mở thẳng kết quả, để gửi cho người
-khác thay vì hướng dẫn họ tìm.
+đúng định dạng. Deep link `/admin#/lookup?q=NE01156` mở thẳng kết quả, để gửi cho
+người khác thay vì hướng dẫn họ tìm.
 
 Số điện thoại **không** tra cứu được: nó chỉ tồn tại trong nội dung sao kê thô,
 và cho tìm theo số điện thoại là biến ô tra cứu thành công cụ dò dữ liệu cá
@@ -78,7 +79,7 @@ dịch, nên nhập lại không làm tăng tổng.
 ## Kiểm thử
 
 ```powershell
-python -m unittest discover -s tests -v     # 83 bài
+python -m unittest discover -s tests -v     # 87 bài
 python verify_real_data.py                  # đối chiếu với số Quỹ công bố
 ```
 

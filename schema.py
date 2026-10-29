@@ -278,6 +278,10 @@ CREATE INDEX idx_tx_status_time         ON bank_transactions(processing_status, 
 
 -- Exact + prefix search on codes. Kills the LIKE '%token%' table scan.
 CREATE INDEX idx_alloc_ne_code          ON transaction_allocations(ne_code);
+-- Covering index for the admin "codes without a student record" list. That
+-- query groups 140k rows by code; without this it scans the table and reads
+-- every row's columns (371 ms), with it the scan is index-only (60 ms).
+CREATE INDEX idx_alloc_ne_amount        ON transaction_allocations(ne_code, allocated_amount_computed);
 CREATE INDEX idx_alloc_ne_number        ON transaction_allocations(ne_number);
 CREATE INDEX idx_alloc_tx               ON transaction_allocations(transaction_id);
 CREATE INDEX idx_alloc_donor            ON transaction_allocations(donor_id);

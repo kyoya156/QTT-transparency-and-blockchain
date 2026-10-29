@@ -13,71 +13,121 @@
 
 <a class="skip" href="#main">Bỏ qua điều hướng</a>
 
-<header class="topbar">
-  <div class="topbar-inner">
-    <img class="logo" src="/assets/nuoi-em-logo.webp" alt="" width="32" height="32" />
-    <div class="brand">
-      <strong>Nuôi Em · Quản trị</strong>
-      <span>Hàng đợi đối soát</span>
+<div class="app">
+
+  <aside class="side">
+    <div class="side-brand">
+      <img src="/assets/nuoi-em-logo.webp" alt="" width="30" height="30" />
+      <div>
+        <strong>Nuôi Em</strong>
+        <span>Quản trị</span>
+      </div>
     </div>
-    <a class="topbar-link" href="/">Bảng công khai</a>
-  </div>
-</header>
 
-<main id="main">
+    <nav class="nav" id="nav">
+      <a href="#/overview" data-view="overview">Tổng quan</a>
+      <a href="#/queue" data-view="queue">Hàng đợi</a>
+      <a href="#/lookup" data-view="lookup">Tra cứu</a>
+    </nav>
 
-  <!-- One box, several kinds of identifier. Staff receive a code from a
-       Facebook message, a phone call or a bank screenshot, so the input type is
-       detected server-side rather than chosen from a dropdown. -->
-  <section class="search-block">
-    <h1 class="page-title">Tra cứu</h1>
-    <form id="search-form" class="search-form" role="search">
-      <label class="sr-only" for="q">Mã cần tra cứu</label>
-      <input id="q" name="q" type="search" inputmode="text" autocomplete="off"
-             spellcheck="false" maxlength="64"
-             placeholder="NE01156 · NE01156S · ACN… · số tham chiếu" />
-      <button type="submit">Tra</button>
-    </form>
-    <p class="hint" id="search-hint">
-      Hệ thống tự nhận dạng loại mã. Không tra cứu được bằng số điện thoại.
-    </p>
-  </section>
-
-  <section id="result" class="result" hidden aria-live="polite"></section>
-
-  <section class="metrics" id="metrics" aria-label="Chỉ số chính"></section>
-
-  <section class="card">
-    <div class="card-head">
-      <h2>Hàng đợi theo nguyên nhân</h2>
-      <p class="sub">Mỗi dòng là một quyết định, không phải một bản ghi.</p>
+    <div class="side-foot">
+      <a href="/">← Bảng công khai</a>
     </div>
-    <div id="queue" class="queue"></div>
-  </section>
+  </aside>
 
-  <section class="card">
-    <div class="card-head">
-      <h2>Tiền vào chưa gán mã, theo năm</h2>
-      <p class="sub">Cột càng dài thì năm đó càng nhiều dòng chưa xử lý.</p>
-    </div>
-    <div id="years" class="years"></div>
-  </section>
+  <main class="main" id="main">
 
-  <section class="card">
-    <div class="card-head">
-      <h2>Nguồn dữ liệu và toàn vẹn</h2>
-    </div>
-    <div id="status" class="status"></div>
-  </section>
+    <header class="page-head">
+      <div>
+        <h1 id="page-title">Tổng quan</h1>
+        <p id="page-sub">Việc đang chờ xử lý và tình trạng dữ liệu.</p>
+      </div>
+      <form id="search-form" class="search" role="search">
+        <label class="sr-only" for="q">Mã cần tra cứu</label>
+        <input id="q" name="q" type="search" inputmode="text" autocomplete="off"
+               spellcheck="false" maxlength="64"
+               placeholder="Mã NE, ACN hoặc số tham chiếu" />
+        <button type="submit">Tra</button>
+      </form>
+    </header>
 
-</main>
+    <!-- ---------------------------------------------------------- overview -->
+    <section id="view-overview" class="view">
+      <div class="metrics" id="metrics"></div>
+
+      <div class="grid-2">
+        <section class="card">
+          <div class="card-head">
+            <h2>Cần xử lý</h2>
+            <p class="sub">Bấm một dòng để mở danh sách.</p>
+          </div>
+          <div id="queue-list" class="queue"></div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2>Tình trạng hệ thống</h2>
+            <p class="sub">Dữ liệu có đang được nạp và ghi đúng không.</p>
+          </div>
+          <div id="status" class="status"></div>
+        </section>
+      </div>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Tiền vào chưa gán mã, theo năm</h2>
+          <p class="sub">Cột dài nhất là năm còn nợ nhiều nhất.</p>
+        </div>
+        <div id="years" class="years"></div>
+      </section>
+    </section>
+
+    <!-- ------------------------------------------------------------- queue -->
+    <section id="view-queue" class="view" hidden>
+      <div class="card">
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <label class="field">
+              <span>Nguyên nhân</span>
+              <select id="bucket-select"></select>
+            </label>
+            <label class="field" id="year-field">
+              <span>Năm</span>
+              <select id="year-select"></select>
+            </label>
+          </div>
+        </div>
+        <p class="toolbar-count" id="queue-count"></p>
+
+        <div class="table-wrap">
+          <table class="data" id="queue-table">
+            <thead id="queue-head"></thead>
+            <tbody id="queue-body"></tbody>
+          </table>
+        </div>
+
+        <div class="table-foot">
+          <span id="queue-range" class="muted"></span>
+          <button type="button" id="more-btn" class="btn" hidden>Xem thêm</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ------------------------------------------------------------ lookup -->
+    <section id="view-lookup" class="view" hidden>
+      <p class="hint" id="search-hint">
+        Nhập mã NE (có hoặc không có hậu tố S/T), mã ACN, hoặc số tham chiếu.
+      </p>
+      <div id="result" class="result" hidden aria-live="polite"></div>
+    </section>
+
+  </main>
+</div>
 
 <footer class="foot">
-  <p>
-    Số tiền theo từng mã NE là <strong>số suy ra</strong> từ nội dung chuyển khoản,
-    không phải số liệu Quỹ đã xác nhận. Nội dung sao kê thô và số tài khoản không
-    được trả ra qua API này.
-  </p>
+  Số tiền theo từng mã NE là <strong>số suy ra</strong> từ nội dung chuyển khoản,
+  không phải số liệu Quỹ đã xác nhận. Nội dung sao kê thô và số tài khoản không
+  được trả ra qua API này.
 </footer>
 
 <script src="/admin.js"></script>

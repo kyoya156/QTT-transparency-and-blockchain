@@ -1,37 +1,43 @@
 /* Nuôi Em · admin dashboard
  *
- * Standalone rather than an import of styles.css, so a change to the public
- * page cannot quietly break the internal tool. The palette is copied, not
- * shared, on purpose: same product, different surface.
+ * Conventional admin shell: fixed sidebar, page header with a global search,
+ * cards, and real tables with filters and paging. The earlier version was one
+ * long scroll, which is honest but unfamiliar — nobody could tell where they
+ * were or what they could click.
  *
- * Mobile-first again, for the same reason as the public page — the provincial
- * officer opening this is on a phone, standing in a school office.
+ * Mobile-first: the sidebar collapses into a horizontal tab strip below 820 px,
+ * because the provincial officer opening this is on a phone in a school office.
  */
 
 :root {
   color-scheme: light;
 
-  --bg: #fff8ef;
+  --bg: #fbf7f1;
   --surface: #ffffff;
-  --surface-2: #fff3df;
-  --border: #f0dcc2;
-  --text: #34261c;
-  --muted: #756354;
-  --accent: #df6a2e;
-  --accent-soft: #fff0df;
-  --warn: #a35b12;
-  --warn-soft: #fff4d9;
-  --danger: #b3261e;
-  --danger-soft: #fdecea;
-  --money: #16754a;
-  --money-soft: #e7f5ee;
+  --surface-2: #fff6ea;
+  --border: #ecdfcd;
+  --border-strong: #ddc9ad;
+  --text: #32251b;
+  --muted: #77655a;
+  --accent: #d2601f;
+  --accent-soft: #fdeee1;
+  --warn: #96540f;
+  --warn-soft: #fdf1d8;
+  --danger: #ac2318;
+  --danger-soft: #fcebe9;
+  --money: #146b45;
+  --money-soft: #e6f4ed;
 
-  --radius: 14px;
-  --gap: 14px;
-  --maxw: 1040px;
+  --radius: 12px;
+  --side: 216px;
 }
 
 * { box-sizing: border-box; }
+
+/* The browser's own [hidden] rule loses to any author `display:` declaration,
+ * so `.field { display: flex }` silently kept the year filter on screen for the
+ * bucket where it is meaningless. Make hidden mean hidden, once, for everything. */
+[hidden] { display: none !important; }
 
 html { -webkit-text-size-adjust: 100%; }
 
@@ -39,7 +45,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto,
+  font: 14.5px/1.55 system-ui, -apple-system, "Segoe UI", Roboto,
         "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   font-variant-numeric: tabular-nums;
 }
@@ -57,111 +63,99 @@ body {
 }
 .skip:focus { left: 0; }
 
-/* ------------------------------------------------------------------ topbar */
+/* ------------------------------------------------------------------ shell */
 
-.topbar {
+.app { display: flex; flex-direction: column; min-height: 100vh; }
+
+.side {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; z-index: 20;
+  position: sticky; top: 0; z-index: 30;
 }
 
-.topbar-inner {
-  max-width: var(--maxw);
-  margin: 0 auto;
-  padding: 10px 16px;
+.side-brand {
+  display: flex; align-items: center; gap: 9px;
+  padding: 10px 14px 8px;
+}
+.side-brand img { border-radius: 7px; flex: none; }
+.side-brand div { display: flex; flex-direction: column; line-height: 1.2; }
+.side-brand strong { font-size: 14px; font-weight: 600; }
+.side-brand span { font-size: 11.5px; color: var(--muted); }
+
+.nav {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  gap: 4px;
+  padding: 0 10px 8px;
+  overflow-x: auto;
 }
 
-.logo { border-radius: 8px; flex: none; }
-
-.brand { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
-.brand strong { font-size: 15px; font-weight: 600; }
-.brand span { font-size: 12px; color: var(--muted); }
-
-.topbar-link {
-  margin-left: auto;
-  font-size: 13px;
-  color: var(--accent);
+.nav a {
+  flex: none;
   text-decoration: none;
-  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 7px 13px;
   border-radius: 999px;
-  padding: 6px 12px;
+  border: 1px solid transparent;
   white-space: nowrap;
 }
-.topbar-link:hover { background: var(--accent-soft); }
-
-/* ------------------------------------------------------------------- shell */
-
-main {
-  max-width: var(--maxw);
-  margin: 0 auto;
-  padding: 18px 16px 40px;
-  display: flex;
-  flex-direction: column;
-  gap: var(--gap);
+.nav a:hover { background: var(--surface-2); color: var(--text); }
+.nav a.active {
+  background: var(--accent-soft);
+  border-color: #f2d3b8;
+  color: var(--accent);
 }
 
-.page-title {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin: 0 0 8px;
-}
+.side-foot { display: none; }
 
-/* ------------------------------------------------------------------ search */
-
-.search-form {
-  display: flex;
-  gap: 8px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 5px 5px 5px 16px;
-  align-items: center;
-}
-
-.search-form:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
-}
-
-.search-form input {
+.main {
   flex: 1;
   min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  font: inherit;
-  color: var(--text);
-  padding: 8px 0;
+  padding: 16px 14px 40px;
+  max-width: 1180px;
+  width: 100%;
 }
-.search-form input::placeholder { color: #b09a86; }
 
-.search-form button {
-  border: 0;
-  background: var(--accent);
-  color: #fff;
-  font: inherit;
-  font-weight: 600;
-  border-radius: 999px;
-  padding: 9px 20px;
-  cursor: pointer;
+/* ------------------------------------------------------------- page head */
+
+.page-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
 }
-.search-form button:hover { background: #c85a22; }
+.page-head h1 { font-size: 19px; font-weight: 600; margin: 0; letter-spacing: -.01em; }
+.page-head p { font-size: 13px; color: var(--muted); margin: 3px 0 0; }
 
-.hint { margin: 8px 2px 0; font-size: 12.5px; color: var(--muted); }
-.hint.warn { color: var(--warn); }
+.search {
+  display: flex;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px 4px 4px 12px;
+  align-items: center;
+}
+.search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.search input {
+  flex: 1; min-width: 0; border: 0; outline: 0; background: transparent;
+  font: inherit; color: var(--text); padding: 7px 0;
+}
+.search input::placeholder { color: #b6a292; }
+.search button {
+  border: 0; background: var(--accent); color: #fff; font: inherit;
+  font-weight: 600; border-radius: 7px; padding: 8px 16px; cursor: pointer;
+}
+.search button:hover { background: #b9501a; }
 
-/* ----------------------------------------------------------------- metrics */
+/* --------------------------------------------------------------- metrics */
 
 .metrics {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  margin-bottom: 14px;
 }
 
 .metric {
@@ -170,119 +164,210 @@ main {
   border-radius: var(--radius);
   padding: 12px 14px;
 }
-
-.metric .label {
-  font-size: 12px;
-  color: var(--muted);
-  margin: 0 0 4px;
-  line-height: 1.35;
-}
-
-.metric .value {
-  font-size: 22px;
-  font-weight: 600;
-  margin: 0;
-  letter-spacing: -.01em;
-}
-
-.metric .note { font-size: 11.5px; color: var(--muted); margin: 4px 0 0; }
+.metric .label { font-size: 12px; color: var(--muted); margin: 0 0 3px; line-height: 1.35; }
+.metric .value { font-size: 21px; font-weight: 600; margin: 0; letter-spacing: -.015em; }
+.metric .note { font-size: 11.5px; color: var(--muted); margin: 3px 0 0; }
 .metric.risk .value { color: var(--danger); }
 .metric.ok .value { color: var(--money); }
 
-/* -------------------------------------------------------------------- card */
+/* ------------------------------------------------------------------ card */
 
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px;
+  padding: 14px;
+  margin-bottom: 14px;
 }
 
-.card-head { margin-bottom: 12px; }
-.card-head h2 { font-size: 15px; font-weight: 600; margin: 0; }
+.card-head { margin-bottom: 10px; }
+.card-head h2 { font-size: 14.5px; font-weight: 600; margin: 0; }
 .card-head .sub { font-size: 12.5px; color: var(--muted); margin: 3px 0 0; }
 
-/* ------------------------------------------------------------------- queue */
+.grid-2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
 
-.queue { display: flex; flex-direction: column; gap: 2px; }
+/* ------------------------------------------------------------ queue list */
+
+.queue { display: flex; flex-direction: column; }
 
 .bucket {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 4px 12px;
-  padding: 12px 0;
+  gap: 3px 12px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
   border-top: 1px solid var(--border);
+  padding: 11px 4px;
+  cursor: pointer;
+  border-radius: 6px;
 }
-.bucket:first-child { border-top: 0; padding-top: 2px; }
+.bucket:first-child { border-top: 0; }
+.bucket:hover { background: var(--surface-2); }
 
-.bucket .name { font-weight: 500; font-size: 14px; }
-.bucket .amount {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--money);
-  text-align: right;
-  white-space: nowrap;
-}
-
+.bucket .name { font-weight: 500; font-size: 13.5px; }
+.bucket .amount { font-size: 13.5px; font-weight: 600; color: var(--money); text-align: right; white-space: nowrap; }
 .bucket .meta {
   grid-column: 1 / -1;
-  font-size: 12.5px;
-  color: var(--muted);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-}
-
-.bucket .count {
-  background: var(--danger-soft);
-  color: var(--danger);
-  border-radius: 999px;
-  padding: 1px 9px;
   font-size: 12px;
-  font-weight: 600;
+  color: var(--muted);
+  display: flex; flex-wrap: wrap; gap: 3px 8px;
+}
+.bucket .count {
+  background: var(--danger-soft); color: var(--danger);
+  border-radius: 999px; padding: 1px 8px; font-size: 11.5px; font-weight: 600;
 }
 
-/* ------------------------------------------------------------------- years */
+/* ----------------------------------------------------------------- status */
 
-.years { display: flex; flex-direction: column; gap: 7px; }
+.status { display: flex; flex-direction: column; gap: 7px; font-size: 13px; }
+.status-row { display: flex; gap: 8px; align-items: baseline; }
+.status-row .k { color: var(--muted); min-width: 128px; flex: none; }
+.status-row .v { font-weight: 500; word-break: break-word; }
+
+/* ------------------------------------------------------------------ years */
+
+.years { display: flex; flex-direction: column; gap: 6px; }
 
 .year-row {
   display: grid;
-  grid-template-columns: 42px 1fr 78px;
+  grid-template-columns: 40px 1fr 74px;
   align-items: center;
   gap: 10px;
   font-size: 12.5px;
 }
-
 .year-row .yr { color: var(--muted); }
-
-.year-track {
-  display: block;
-  background: var(--surface-2);
-  border-radius: 999px;
-  height: 16px;
-  overflow: hidden;
-}
-
-.year-fill {
-  display: block;
-  height: 100%;
-  background: var(--accent);
-  border-radius: 999px;
-  min-width: 3px;
-}
+.year-track { display: block; background: var(--surface-2); border-radius: 999px; height: 14px; overflow: hidden; }
+.year-fill { display: block; height: 100%; background: var(--accent); border-radius: 999px; min-width: 3px; }
+.year-row .n { text-align: right; color: var(--muted); }
 
 /* Bar widths as classes, not inline styles: the server sends style-src 'self',
- * so a style="" attribute would be dropped and every bar would render empty. */
+ * so a style="" attribute is dropped and every bar would render empty. */
 .w-0{width:0%}.w-5{width:5%}.w-10{width:10%}.w-15{width:15%}.w-20{width:20%}
 .w-25{width:25%}.w-30{width:30%}.w-35{width:35%}.w-40{width:40%}.w-45{width:45%}
 .w-50{width:50%}.w-55{width:55%}.w-60{width:60%}.w-65{width:65%}.w-70{width:70%}
 .w-75{width:75%}.w-80{width:80%}.w-85{width:85%}.w-90{width:90%}.w-95{width:95%}
 .w-100{width:100%}
 
-.year-row .n { text-align: right; color: var(--muted); }
+/* ---------------------------------------------------------------- toolbar */
 
-/* ------------------------------------------------------------------ result */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  margin-bottom: 6px;
+}
+.toolbar-left { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--muted); }
+.field select {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 6px 26px 6px 10px;
+  min-width: 150px;
+  cursor: pointer;
+}
+.field select:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+
+.toolbar-count { margin: 0 0 10px; font-size: 12.5px; color: var(--muted); }
+
+/* ------------------------------------------------------------------ table */
+
+.table-wrap { overflow-x: auto; margin: 0 -14px; padding: 0 14px; }
+
+table.data {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 520px;
+}
+
+table.data th {
+  text-align: left;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--surface);
+  white-space: nowrap;
+}
+
+table.data td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+table.data tbody tr:hover { background: var(--surface-2); }
+table.data tbody tr.clickable { cursor: pointer; }
+table.data .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+table.data .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+table.data .muted { color: var(--muted); }
+
+/* At phone width the last column is the one that repeats "chờ xem lại" on every
+ * row, so it is the one to drop. The wrapper still scrolls as a fallback for
+ * anything longer than expected -- a clipped column is worse than a scrollbar,
+ * but neither is acceptable as the default. */
+@media (max-width: 620px) {
+  /* `table.data` carries min-width: 520px so columns keep their proportions on
+   * a laptop. On a 390px phone that guarantee becomes the reason the table is
+   * wider than the screen -- and a min-width also stops text from wrapping, so
+   * the reference column looked truncated no matter what break rule was set. */
+  table.data { min-width: 0; }
+  table.data[data-mode="tx"] th:nth-child(4),
+  table.data[data-mode="tx"] td:nth-child(4),
+  table.data.result-table th:nth-child(4),
+  table.data.result-table td:nth-child(4) {
+    display: none;
+  }
+  table.data th,
+  table.data td { padding-left: 8px; padding-right: 8px; }
+  /* A bank reference like "AUTO-real_vcb.csv-156659" is the one thing on the
+   * row the officer has to be able to read in full -- it is what they search
+   * the statement with. Let it take a second line rather than be cut off.
+   * `anywhere` and not `break-all`: the reference already has break points at
+   * its dashes, so the line splits as "AUTO-real_vcb.csv-" / "156659" instead
+   * of cutting a number in half. */
+  table.data[data-mode="tx"] th:nth-child(3),
+  table.data[data-mode="tx"] td:nth-child(3) { overflow-wrap: anywhere; }
+  table.data .mono { font-size: 11px; }
+}
+
+.table-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 12px;
+}
+.muted { color: var(--muted); font-size: 12.5px; }
+
+.btn {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 7px 16px;
+  cursor: pointer;
+}
+.btn:hover { background: var(--surface-2); }
+.btn:disabled { opacity: .5; cursor: default; }
+
+/* ----------------------------------------------------------------- result */
 
 .result {
   background: var(--surface);
@@ -292,7 +377,7 @@ main {
 }
 
 .result-head {
-  padding: 16px;
+  padding: 14px;
   background: var(--surface-2);
   border-bottom: 1px solid var(--border);
   display: flex;
@@ -303,86 +388,56 @@ main {
 
 .result-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 600;
-  letter-spacing: .02em;
 }
-
 .result-meta { font-size: 12.5px; color: var(--muted); width: 100%; }
 
-.badge {
-  border-radius: 999px;
-  padding: 3px 11px;
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-}
+.badge { border-radius: 999px; padding: 3px 10px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
 .badge.warn { background: var(--warn-soft); color: var(--warn); }
 .badge.ok { background: var(--money-soft); color: var(--money); }
-.badge.muted { background: #f2ece4; color: var(--muted); }
+.badge.muted { background: #f0eae2; color: var(--muted); }
 .badge.risk { background: var(--danger-soft); color: var(--danger); }
 
-.result-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0;
-}
+.result-body { display: grid; grid-template-columns: minmax(0, 1fr); }
 
-.block { padding: 14px 16px; border-top: 1px solid var(--border); }
+.block { padding: 13px 14px; border-top: 1px solid var(--border); }
 .block:first-child { border-top: 0; }
 .block h3 {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin: 0 0 8px;
+  font-size: 11.5px; font-weight: 600; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--muted); margin: 0 0 8px;
 }
 
-.kv { display: grid; grid-template-columns: 116px 1fr; gap: 4px 10px; font-size: 13.5px; margin: 0; }
+.kv { display: grid; grid-template-columns: 112px 1fr; gap: 4px 10px; font-size: 13px; margin: 0; }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; font-weight: 500; word-break: break-word; }
 
 .empty {
-  border: 1px dashed var(--border);
-  border-radius: 10px;
-  padding: 12px;
-  font-size: 13px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 9px;
+  padding: 11px;
+  font-size: 12.5px;
   color: var(--muted);
   background: #fffdfa;
+  line-height: 1.55;
 }
 .empty strong { color: var(--warn); }
 
-.tx { width: 100%; border-collapse: collapse; font-size: 13px; }
-.tx th {
-  text-align: left;
-  font-size: 11.5px;
-  text-transform: uppercase;
-  letter-spacing: .04em;
-  color: var(--muted);
-  font-weight: 600;
-  padding: 0 6px 6px 0;
-  border-bottom: 1px solid var(--border);
-}
-.tx td { padding: 7px 6px 7px 0; border-bottom: 1px solid #f7ecdd; }
-.tx tr:last-child td { border-bottom: 0; }
-.tx .num { text-align: right; white-space: nowrap; padding-right: 20px; }
-.tx .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+.result .data th:nth-child(1), .result .data td:nth-child(1) { width: 96px; }
+.result .data th:nth-child(2), .result .data td:nth-child(2) { width: 132px; }
+.result .data th:nth-child(3), .result .data td:nth-child(3) { width: 118px; }
 
-/* ------------------------------------------------------------------ status */
+.hint { margin: 0 0 10px; font-size: 12.5px; color: var(--muted); }
+.hint.warn { color: var(--warn); }
 
-.status { display: flex; flex-direction: column; gap: 8px; font-size: 13.5px; }
-.status-row { display: flex; gap: 8px; align-items: baseline; }
-.status-row .k { color: var(--muted); min-width: 132px; flex: none; }
-.status-row .v { font-weight: 500; word-break: break-word; }
-
-/* -------------------------------------------------------------------- foot */
+/* ------------------------------------------------------------------- foot */
 
 .foot {
-  max-width: var(--maxw);
+  max-width: 1180px;
+  width: 100%;
   margin: 0 auto;
-  padding: 0 16px 40px;
-  font-size: 12.5px;
+  padding: 0 14px 36px;
+  font-size: 12px;
   color: var(--muted);
   line-height: 1.6;
 }
@@ -397,11 +452,34 @@ main {
   .block.span { grid-column: 1 / -1; border-right: 0; }
 }
 
-@media (min-width: 860px) {
-  .bucket {
-    grid-template-columns: 1fr auto auto;
-    align-items: center;
+@media (min-width: 820px) {
+  .app { flex-direction: row; }
+
+  .side {
+    width: var(--side);
+    flex: none;
+    border-bottom: 0;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    position: sticky;
+    top: 0;
   }
-  .bucket .meta { grid-column: 1; }
-  .bucket .amount { font-size: 15px; }
+
+  .side-brand { padding: 18px 16px 14px; }
+
+  .nav { flex-direction: column; padding: 0 10px; gap: 2px; overflow: visible; }
+  .nav a { border-radius: 8px; padding: 8px 12px; }
+
+  .side-foot { display: block; margin-top: auto; padding: 14px 16px 18px; border-top: 1px solid var(--border); }
+  .side-foot a { font-size: 12.5px; color: var(--muted); text-decoration: none; }
+  .side-foot a:hover { color: var(--accent); }
+
+  .main { padding: 22px 26px 48px; }
+
+  .page-head { flex-direction: row; align-items: flex-end; justify-content: space-between; gap: 20px; }
+  .search { width: 340px; flex: none; }
+
+  .grid-2 { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
 }

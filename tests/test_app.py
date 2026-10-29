@@ -22,6 +22,7 @@ import threading
 import unittest
 from pathlib import Path
 from urllib.error import HTTPError
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -680,6 +681,51 @@ class ApiSecurityTests(unittest.TestCase):
             self.assertIn("count", bucket)
             self.assertIn("amount", bucket)
 
+    def test_admin_rows_rejects_an_unknown_bucket(self):
+        """The bucket name arrives from a URL hash, so it is user input. An
+        unknown one must not fall through to a default list."""
+        _, payload, _ = self.get("/api/admin/rows?bucket=whatever&limit=5")
+        self.assertEqual(payload["error"], "unknown_bucket")
+        self.assertEqual(payload["items"], [])
+
+    def test_admin_rows_pages_without_repeating_or_dropping(self):
+        """Keyset paging on (total, ne_code) must partition the set exactly.
+
+        An OFFSET-based page would repeat or skip rows as soon as two codes hold
+        the same total -- and in this fixture all 15 codes hold the same amount,
+        which is the worst case for that mistake.
+        """
+        seen, cursor, guard = [], None, 0
+        while True:
+            query = "/api/admin/rows?bucket=code_no_profile&limit=5"
+            if cursor:
+                query += "&cursor=" + quote(cursor, safe="")
+            _, page, _ = self.get(query)
+            seen.extend(item["ne_code"] for item in page["items"])
+            guard += 1
+            self.assertLess(guard, 10, "paging never terminated")
+            if not page["has_more"]:
+                self.assertEqual(len(seen), page["total"])
+                break
+            cursor = page["next_cursor"]
+        self.assertEqual(len(seen), len(set(seen)), "a code appeared on two pages")
+        self.assertEqual(len(seen), 15)
+
+    def test_admin_rows_survives_a_malformed_cursor(self):
+        _, payload, _ = self.get("/api/admin/rows?bucket=code_no_profile&cursor=not-a-cursor")
+        self.assertNotIn("error", payload)
+        self.assertEqual(len(payload["items"]), min(25, payload["total"]))
+
+    def test_admin_rows_never_serve_the_raw_memo(self):
+        """Same rule as the public table: the memo is where donor names and
+        phone numbers live, so the admin list gets the masked sentence only."""
+        for bucket in ("inbound_no_code", "outbound_unclassified"):
+            _, payload, _ = self.get(f"/api/admin/rows?bucket={bucket}")
+            for item in payload["items"]:
+                self.assertNotIn("raw_description", item)
+                self.assertIn("description_masked", item)
+                self.assertTrue(item["description_masked"].startswith("Nội dung giao dịch đã được ẩn"))
+
     def test_admin_page_is_served_as_html(self):
         with urlopen(f"http://127.0.0.1:{self.port}/admin", timeout=5) as response:
             body = response.read().decode("utf-8")
@@ -844,7 +890,13 @@ class PerformanceTests(unittest.TestCase):
         ).fetchall()
         conn.close()
         text = " ".join(str(r[3]) for r in plan)
-        self.assertIn("idx_alloc_ne_code", text)
+        # Two indexes lead on ne_code: the plain one, and the covering
+        # (ne_code, amount) pair added for the admin list. Naming the exact one
+        # made this test fail the moment the covering index was introduced, even
+        # though the plan had got better. What matters is that the lookup is not
+        # a table scan.
+        self.assertNotIn("SCAN transaction_allocations", text)
+        self.assertIn("USING INDEX idx_alloc_ne", text)
 
 
 if __name__ == "__main__":

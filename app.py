@@ -374,7 +374,13 @@ def ne_payload(params: dict) -> dict:
     # The suffix is part of the code, not decoration: NE00001S is lunch and
     # NE00001T is dinner, and they are two different sponsorships.
     suffix = code[-1] if code[-1:] in {"S", "T"} else ""
-    meal_plan = {"S": "lunch", "T": "dinner"}.get(suffix, "chưa phân biệt S/T")
+    # Labels stay Vietnamese: this string is printed straight into the UI, and
+    # an English "lunch" in an otherwise Vietnamese page reads like a bug.
+    # A code without a suffix is not "unknown" — it is the base number that both
+    # the lunch and the dinner code sit under, so say that instead.
+    meal_plan = {"S": "bữa trưa", "T": "bữa tối"}.get(suffix)
+    if not meal_plan:
+        meal_plan = "cả S và T" if variants else "không có hậu tố S/T"
     return {
         "ne_code": code,
         "allocation_count": len(allocations),
@@ -605,6 +611,156 @@ def admin_queue_payload(_params) -> dict:
     }
 
 
+BUCKET_LABELS = {
+    "inbound_no_code": "Dòng vào không tìm thấy mã NE",
+    "code_no_profile": "Mã có tiền nhưng chưa có hồ sơ",
+    "outbound_unclassified": "Dòng ra chưa phân loại kế toán",
+}
+
+
+def _year_range(year: str):
+    """Turn '2023' into a half-open timestamp range the index can use.
+
+    `substr(tx_time, 1, 4) = '2023'` gives the same answer but computes on
+    every candidate row, which turns an index range scan into a scan plus a
+    filter. The half-open form keeps `idx_tx_status_time` doing the work.
+    """
+    if not (year.isdigit() and len(year) == 4 and 2000 <= int(year) <= 2100):
+        return None
+    return f"{year}-01-01", f"{int(year) + 1}-01-01"
+
+
+def admin_rows_payload(params: dict) -> dict:
+    """One page of the rows behind a queue bucket.
+
+    Keyset pagination on `(amount, id)` rather than OFFSET. The biggest bucket
+    holds 125,713 rows, and a deep OFFSET would let one request walk the table.
+    The cursor is opaque to the client: it just encodes the last row served.
+    """
+    bucket = (params.get("bucket", [""])[0] or "").strip()
+    if bucket not in BUCKET_LABELS:
+        return {"error": "unknown_bucket", "items": [], "total": 0}
+
+    year = (params.get("year", [""])[0] or "").strip()
+    cursor = (params.get("cursor", [""])[0] or "").strip()
+    limit = min(100, clean_limit(params, 25))
+    window = _year_range(year)
+
+    with closing(database_connection()) as conn:
+        if bucket == "code_no_profile":
+            return _code_rows(conn, bucket, limit, cursor)
+        return _transaction_rows(conn, bucket, limit, cursor, window)
+
+
+def _transaction_rows(conn, bucket, limit, cursor, window) -> dict:
+    condition = (
+        "direction = 'inbound' AND processing_status = 'needs_review'"
+        if bucket == "inbound_no_code"
+        else "direction = 'outbound' AND processing_status <> 'matched'"
+    )
+    where = [condition]
+    values: list = []
+    if window:
+        where.append("tx_time >= ? AND tx_time < ?")
+        values.extend(window)
+
+    total = scalar(conn, f"SELECT COUNT(*) FROM bank_transactions WHERE {' AND '.join(where)}", values)
+
+    page_where = list(where)
+    page_values = list(values)
+    if cursor:
+        try:
+            amount_text, id_text = cursor.split(":", 1)
+            page_where.append("(amount, id) < (?, ?)")
+            page_values.extend([int(amount_text), int(id_text)])
+        except (ValueError, TypeError):
+            cursor = ""
+
+    rows = rows_to_dicts(
+        conn.execute(
+            f"""
+            SELECT id, provider_tx_id, tx_time, direction, amount,
+                   processing_status, reference_tokens
+            FROM bank_transactions
+            WHERE {' AND '.join(page_where)}
+            ORDER BY amount DESC, id DESC
+            LIMIT ?
+            """,
+            page_values + [limit + 1],
+        ).fetchall()
+    )
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+    for row in rows:
+        row["description_masked"] = safe_transaction_description(row)
+    next_cursor = f"{rows[-1]['amount']}:{rows[-1]['id']}" if rows and has_more else None
+    return {
+        "bucket": bucket,
+        "label": BUCKET_LABELS[bucket],
+        "kind": "transactions",
+        "items": rows,
+        "total": total,
+        "has_more": has_more,
+        "next_cursor": next_cursor,
+    }
+
+
+def _code_rows(conn, bucket, limit, cursor) -> dict:
+    """Codes that hold money but no student record.
+
+    No join to `bank_transactions` here on purpose: pulling `MAX(tx_time)` for
+    each code cost 843 ms against 290 ms without it, and the last-seen date is
+    already on the detail page. A list should not pay for a column nobody reads
+    from it.
+    """
+    orphan_filter = (
+        "ta.ne_code NOT IN (SELECT ne_code FROM student_supports WHERE ne_code IS NOT NULL)"
+    )
+    total = scalar(
+        conn,
+        f"SELECT COUNT(DISTINCT ta.ne_code) FROM transaction_allocations ta WHERE {orphan_filter}",
+    )
+
+    having = ""
+    values: list = []
+    if cursor:
+        try:
+            total_text, code_text = cursor.split(":", 1)
+            having = "HAVING (SUM(ta.allocated_amount_computed), ta.ne_code) < (?, ?)"
+            values.extend([int(total_text), code_text])
+        except (ValueError, TypeError):
+            cursor = ""
+
+    rows = rows_to_dicts(
+        conn.execute(
+            f"""
+            SELECT ta.ne_code,
+                   COUNT(*) AS rows,
+                   COALESCE(SUM(ta.allocated_amount_computed), 0) AS total
+            FROM transaction_allocations ta
+            WHERE {orphan_filter}
+            GROUP BY ta.ne_code
+            {having}
+            ORDER BY total DESC, ta.ne_code DESC
+            LIMIT ?
+            """,
+            values + [limit + 1],
+        ).fetchall()
+    )
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+    next_cursor = f"{rows[-1]['total']}:{rows[-1]['ne_code']}" if rows and has_more else None
+    return {
+        "bucket": bucket,
+        "label": BUCKET_LABELS[bucket],
+        "kind": "codes",
+        "items": rows,
+        "total": total,
+        "has_more": has_more,
+        "next_cursor": next_cursor,
+    }
+
+
 def admin_search_payload(params: dict) -> dict:
     """One box, several kinds of identifier.
 
@@ -661,6 +817,7 @@ API_ROUTES = {
     "/api/coverage": coverage_payload,
     "/api/metadata": metadata_payload,
     "/api/admin/queue": admin_queue_payload,
+    "/api/admin/rows": admin_rows_payload,
     "/api/admin/search": admin_search_payload,
 }
 
@@ -747,6 +904,17 @@ class RequestHandler(BaseHTTPRequestHandler):
         self._static(parsed.path)
 
     def _reject_write(self) -> None:
+        # Read the body before answering. Closing a socket that still has unread
+        # bytes queued makes the OS send a reset, and the reset destroys the 405
+        # we just wrote -- the caller sees a connection error instead of
+        # "read-only". The body is read and discarded, never parsed or stored.
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except (TypeError, ValueError):
+            length = 0
+        if length > 0:
+            self.rfile.read(min(length, 1 << 20))
+        self.close_connection = True
         self._json(
             {"error": "read_only", "detail": "this MVP exposes no write endpoints"},
             HTTPStatus.METHOD_NOT_ALLOWED,
