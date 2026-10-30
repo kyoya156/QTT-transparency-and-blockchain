@@ -38,6 +38,9 @@ Mọi endpoint ghi (POST/PUT/PATCH/DELETE) trả về 405.
 | `/` | "Quỹ đã nhận và chi bao nhiêu?" | công chúng, nhà tài trợ |
 | `/admin` | "Hôm nay phải làm gì?" | cán sự quỹ, kế toán, kiểm toán |
 
+Người dùng hằng ngày đọc `docs/HUONG_DAN_QUAN_TRI.md` — hướng dẫn từng màn hình, ba
+hàng đợi và việc phải làm với mỗi cái, những gì trang **chưa** làm được.
+
 Trang công khai đặt số tổng lên trước. Trang quản trị đặt **hàng đợi việc** lên
 trước, vì 125.713 dòng chưa đối soát không phải thứ đọc được bằng biểu đồ tròn —
 nó phải được gom thành vài quyết định, mỗi quyết định kèm số tiền đang bị ảnh

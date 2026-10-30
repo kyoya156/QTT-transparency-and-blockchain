@@ -274,8 +274,9 @@
     }).join("");
 
     var shown = state.rows.length;
-    el("queue-count").textContent = num(state.total) + " dòng · " +
-      (BUCKET_HINT[state.bucket] || "");
+    // Count only. The sentence explaining the bucket now lives in the page
+    // header, and printing it twice made the two lines look like a duplicate.
+    el("queue-count").textContent = num(state.total) + " dòng";
     el("queue-range").textContent = shown
       ? "Hiển thị " + num(shown) + " / " + num(state.total)
       : "Không có dòng nào.";
@@ -428,7 +429,10 @@
     if (current.view === "queue") {
       var bucket = current.param || state.bucket || "inbound_no_code";
       el("page-title").textContent = bucketTitle(bucket);
-      el("page-sub").textContent = BUCKET_HINT[bucket] || "";
+      // The action is the reason this page exists, so it belongs in the header
+      // and not only on the overview button that got you here.
+      el("page-sub").textContent = (BUCKET_HINT[bucket] || "") +
+        (bucketField(bucket, "action") ? " · Việc phải làm: " + bucketField(bucket, "action") + "." : "");
       renderQueueRoute(bucket, current.query.year || "", false);
       return;
     }
@@ -447,11 +451,15 @@
     el("page-sub").textContent = "Việc đang chờ xử lý và tình trạng dữ liệu.";
   }
 
-  function bucketTitle(key) {
+  function bucketField(key, field) {
     var found = (state.queue && state.queue.buckets || []).filter(function (bucket) {
       return bucket.key === key;
     })[0];
-    return found ? found.label : "Hàng đợi";
+    return found ? found[field] : "";
+  }
+
+  function bucketTitle(key) {
+    return bucketField(key, "label") || "Hàng đợi";
   }
 
   // ---------------------------------------------------------------- wiring
