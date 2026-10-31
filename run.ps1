@@ -23,5 +23,5 @@ if ($pythonCommand -and $pythonCommand.Source -notlike '*\WindowsApps\python.exe
     exit $LASTEXITCODE
 }
 
-Write-Error 'Không tìm thấy Python 3. Cài Python 3.11+ hoặc chạy ứng dụng trong Codex workspace.'
+Write-Error 'Không tìm thấy Python 3. Cài Python 3.11+ từ python.org (tick "Add python.exe to PATH"), mở lại PowerShell rồi chạy lại. Chi tiết: docs/HUONG_DAN_CHAY.md'
 exit 1

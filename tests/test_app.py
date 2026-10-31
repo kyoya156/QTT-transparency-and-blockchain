@@ -14,6 +14,8 @@ Tests fall into three groups:
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import sqlite3
 import sys
@@ -849,6 +851,61 @@ class ApiSecurityTests(unittest.TestCase):
         _, payload, _ = self.get("/api/transactions?limit=1")
         self.assertEqual(payload["count"], 1)
         self.assertTrue(payload["truncated"])
+
+
+class StartupPreflightTests(unittest.TestCase):
+    """A fresh clone has no database, because the statement holds donor names.
+
+    Without this check the server starts happily and every API answers
+    `{"error": "database_error"}` while the page itself renders -- which reads
+    as a broken app rather than an absent file. The message has to name the
+    fix, so these tests assert on the text and not only on the exit code.
+    """
+
+    def run_preflight_without_database(self):
+        original = app.DATABASE
+        with tempfile.TemporaryDirectory(prefix="nuoiem_empty_") as tmp:
+            missing = Path(tmp) / "absent.sqlite"
+            app.DATABASE = missing
+            out = io.StringIO()
+            try:
+                with contextlib.redirect_stdout(out):
+                    with self.assertRaises(SystemExit) as caught:
+                        app.preflight()
+            finally:
+                app.DATABASE = original
+        return caught.exception.code, out.getvalue(), missing
+
+    def test_missing_database_exits_non_zero(self):
+        code, _, _ = self.run_preflight_without_database()
+        self.assertEqual(code, 1)
+
+    def test_missing_database_message_names_the_path_and_the_guide(self):
+        _, text, missing = self.run_preflight_without_database()
+        self.assertIn(str(missing), text)
+        self.assertIn("HUONG_DAN_CHAY.md", text)
+        # Both recovery paths have to be offered, or the reader is stuck when
+        # the person who sent the database is offline.
+        self.assertIn("nuoi_em_mvp.sqlite", text)
+        self.assertIn("build_database.py", text)
+
+    def test_present_database_reports_row_count(self):
+        original = app.DATABASE
+        with tempfile.TemporaryDirectory(prefix="nuoiem_preflight_") as tmp:
+            db = Path(tmp) / "present.sqlite"
+            conn = sqlite3.connect(db)
+            conn.executescript(SCHEMA)
+            conn.commit()
+            conn.close()
+            app.DATABASE = db
+            out = io.StringIO()
+            try:
+                with contextlib.redirect_stdout(out):
+                    app.preflight()
+            finally:
+                app.DATABASE = original
+        self.assertIn("Database:", out.getvalue())
+        self.assertIn("giao dịch", out.getvalue())
 
 
 class PerformanceTests(unittest.TestCase):

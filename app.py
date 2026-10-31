@@ -935,12 +935,52 @@ def create_server(host: str = "127.0.0.1", port: int = 8765) -> ThreadingHTTPSer
     return ThreadingHTTPServer((host, port), RequestHandler)
 
 
+MISSING_DATABASE_MESSAGE = """\
+Không tìm thấy database:
+  {path}
+
+Đây là bình thường khi vừa clone repo. File dữ liệu KHÔNG nằm trên Git: sao kê
+chứa tên, số điện thoại và email nhà tài trợ, nên không được đưa lên.
+
+Có hai cách lấy dữ liệu:
+
+  1. Nhận file nuoi_em_mvp.sqlite (~180 MB) từ người phụ trách nhóm,
+     đặt vào thư mục data/ rồi chạy lại lệnh này.
+
+  2. Nhận file real_vcb.csv (~34 MB) rồi tự dựng database:
+       python build_database.py data/real_vcb.csv
+
+Hướng dẫn đầy đủ: docs/HUONG_DAN_CHAY.md
+"""
+
+
+def preflight() -> None:
+    """Stop with an actionable message instead of serving 500s.
+
+    The connection is opened `mode=ro`, so a missing file is not created on
+    demand -- every API call would answer `{"error": "database_error"}` while
+    the page itself loads fine. That looks like a broken app rather than an
+    absent file, which is the worst way to learn this.
+    """
+    if not DATABASE.exists():
+        print(MISSING_DATABASE_MESSAGE.format(path=DATABASE))
+        raise SystemExit(1)
+    with closing(database_connection()) as conn:
+        rows = scalar(conn, "SELECT COUNT(*) FROM bank_transactions")
+        period = conn.execute(
+            "SELECT MIN(tx_time), MAX(tx_time) FROM bank_transactions"
+        ).fetchone()
+    print(f"Database: {DATABASE}")
+    print(f"  {rows:,} giao dịch · {period[0]} → {period[1]}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Nuôi Em Topic 4 local MVP")
     parser.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8765")))
     parser.add_argument("--open", action="store_true")
     args = parser.parse_args()
+    preflight()
     server = create_server(args.host, args.port)
     url = f"http://{args.host}:{server.server_address[1]}"
     print(f"Topic 4 MVP running at {url}")

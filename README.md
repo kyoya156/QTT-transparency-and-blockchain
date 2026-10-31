@@ -31,6 +31,11 @@ python app.py --port 8792     # đổi cổng
 Ứng dụng chỉ lắng nghe trên `127.0.0.1` và không được xuất bản lên Internet.
 Mọi endpoint ghi (POST/PUT/PATCH/DELETE) trả về 405.
 
+**Vừa clone repo về lần đầu?** Đọc [`docs/HUONG_DAN_CHAY.md`](docs/HUONG_DAN_CHAY.md)
+trước. File dữ liệu **không nằm trên Git** (sao kê chứa tên và số điện thoại nhà
+tài trợ), nên clone xong chạy ngay sẽ báo thiếu database — tài liệu đó nói cách
+lấy và ba con số dùng để kiểm tra đã chạy đúng dữ liệu.
+
 ## Hai bề mặt, hai câu hỏi khác nhau
 
 | Đường dẫn | Trả lời câu hỏi | Đối tượng |
@@ -82,7 +87,7 @@ dịch, nên nhập lại không làm tăng tổng.
 ## Kiểm thử
 
 ```powershell
-python -m unittest discover -s tests -v     # 87 bài
+python -m unittest discover -s tests -v     # 90 bài
 python verify_real_data.py                  # đối chiếu với số Quỹ công bố
 ```
 
