@@ -945,7 +945,8 @@ chứa tên, số điện thoại và email nhà tài trợ, nên không đượ
 Có hai cách lấy dữ liệu:
 
   1. Nhận file nuoi_em_mvp.sqlite (~180 MB) từ người phụ trách nhóm,
-     đặt vào thư mục data/ rồi chạy lại lệnh này.
+     tạo thư mục data/ (git clone không tạo thư mục rỗng), đặt file vào đó,
+     rồi chạy lại lệnh này.
 
   2. Nhận file real_vcb.csv (~34 MB) rồi tự dựng database:
        python build_database.py data/real_vcb.csv
