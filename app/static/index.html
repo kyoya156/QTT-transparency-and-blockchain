@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Access admin</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--mut:#666;--line:#ddd;--acc:#1a56db}
+@media (prefers-color-scheme:dark){:root{--bg:#161616;--fg:#eee;--mut:#9a9a9a;--line:#333;--acc:#6ea0ff}}
+body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,sans-serif;max-width:1000px;margin:auto}
+h1{font-size:20px}nav button,button{font:inherit;padding:6px 12px;border:1px solid var(--line);background:none;color:var(--fg);border-radius:6px;cursor:pointer}
+nav button.on{border-color:var(--acc);color:var(--acc)}table{width:100%;border-collapse:collapse;margin-top:12px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}.mut{color:var(--mut);font-size:13px}
+input,select{font:inherit;padding:5px 8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:6px}
+label.d{margin-right:10px;white-space:nowrap}.warn{color:#b45309}
+</style></head><body>
+<h1>Access admin</h1>
+<p class="mut">Data and tools with no label are visible to admins only. Tick a department to give it access.</p>
+<p><input id="tok" type="password" placeholder="Admin token" size="40"> <button id="go">Connect</button> <span id="msg" class="mut"></span></p>
+<nav><button data-t="data" class="on">Data</button> <button data-t="tools">Tools</button> <button data-t="users">Users</button> <button data-t="audit">Audit log</button></nav>
+<div id="view"></div>
+<script>
+const $=s=>document.querySelector(s);let DEPTS=[],tab='data';
+const tok=()=>{try{return sessionStorage.getItem('tok')||''}catch(e){return ''}};
+async function api(path,opt={}){const r=await fetch('/api/admin'+path,{...opt,headers:{'Authorization':'Bearer '+tok(),'Content-Type':'application/json'}});
+ if(!r.ok){throw new Error(r.status+' '+(await r.text()).slice(0,200))}return r.json()}
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function boxes(sel,deps,attr){return DEPTS.map(d=>`<label class="d"><input type="checkbox" ${attr} data-d="${d}" ${deps.includes(d)?'checked':''}> ${d}</label>`).join('')}
+const pick=el=>[...el.querySelectorAll('input[data-d]:checked')].map(i=>i.dataset.d);
+async function show(){$('#msg').textContent='';const v=$('#view');
+ try{
+ if(tab==='data'){const j=await api('/sources?limit=500');
+  const tr=Object.entries(j.type_rules);
+  v.innerHTML=`<table><tr><th>Source</th><th>Chunks</th><th>Departments</th><th></th></tr>`+
+  ['web','post'].map(t=>`<tr data-type="${t}"><td><b>All ${t} sources</b><div class="mut">default for this type</div></td><td></td><td>${boxes(0,j.type_rules[t]||[],'')}</td><td><button class="sv">Save</button></td></tr>`).join('')+
+  j.items.map(i=>`<tr data-type="${esc(i.source_type)}" data-id="${esc(i.source_id)}"><td>${esc(i.title||i.source_id)}<div class="mut">${esc(i.source_type)} · ${esc(i.url||i.source_id)}${i.labelled?'':' · <span class="warn">unlabelled: admin only</span>'}</div></td><td>${i.chunks}</td><td>${boxes(0,i.departments,'')}</td><td><button class="sv">Save</button> ${i.has_own_rule?'<button class="rm">Reset</button>':''}</td></tr>`).join('')+`</table>`;
+  v.querySelectorAll('.sv').forEach(b=>b.onclick=async()=>{const r=b.closest('tr');const isType=!r.dataset.id;
+   await api('/access/source',{method:'PUT',body:JSON.stringify({source_type:r.dataset.type,source_id:isType?null:r.dataset.id,departments:pick(r)})});$('#msg').textContent='Saved';show()});
+  v.querySelectorAll('.rm').forEach(b=>b.onclick=async()=>{const r=b.closest('tr');await api(`/access/source?source_type=${encodeURIComponent(r.dataset.type)}&source_id=${encodeURIComponent(r.dataset.id)}`,{method:'DELETE'});show()});
+ }else if(tab==='tools'){const j=await api('/tools');
+  v.innerHTML=`<table><tr><th>Tool</th><th>Departments</th><th></th></tr>`+j.items.map(i=>`<tr data-tool="${esc(i.tool)}"><td><b>${esc(i.tool)}</b><div class="mut">${esc(i.description)}</div></td><td>${boxes(0,i.departments,'')}</td><td><button class="sv">Save</button></td></tr>`).join('')+`</table>`;
+  v.querySelectorAll('.sv').forEach(b=>b.onclick=async()=>{const r=b.closest('tr');await api('/access/tool/'+r.dataset.tool,{method:'PUT',body:JSON.stringify({departments:pick(r)})});$('#msg').textContent='Saved'});
+ }else if(tab==='users'){const j=await api('/users');
+  v.innerHTML=`<p><input id="ue" placeholder="email"> <input id="un" placeholder="name"> <select id="ud">${['admin',...DEPTS].map(d=>`<option>${d}</option>`).join('')}</select> <button id="uc">Create</button></p><div id="nt" class="warn"></div><table><tr><th>Email</th><th>Name</th><th>Dept</th><th></th></tr>`+
+  j.items.map(u=>`<tr><td>${esc(u.email)}</td><td>${esc(u.name)}</td><td>${esc(u.department)}</td><td>${u.is_active?`<button data-u="${u.id}" class="dx">Deactivate</button>`:'<span class="mut">inactive</span>'}</td></tr>`).join('')+`</table>`;
+  $('#uc').onclick=async()=>{const r=await api('/users',{method:'POST',body:JSON.stringify({email:$('#ue').value,name:$('#un').value,department:$('#ud').value})});$('#nt').textContent='Token for '+r.email+' (shown once): '+r.token};
+  v.querySelectorAll('.dx').forEach(b=>b.onclick=async()=>{await api(`/users/${b.dataset.u}/deactivate`,{method:'POST'});show()});
+ }else{const j=await api('/audit?limit=200');
+  v.innerHTML=`<table><tr><th>When</th><th>User</th><th>Dept</th><th>Action</th><th>Detail</th></tr>`+j.items.map(a=>`<tr><td>${esc(a.at)}</td><td>${esc(a.user_id)}</td><td>${esc(a.department)}</td><td>${esc(a.action)}</td><td class="mut">${esc(a.query||'')} ${esc(a.chunk_ids||'')} ${esc(a.detail||'')}</td></tr>`).join('')+`</table>`}
+ }catch(e){v.innerHTML='';$('#msg').textContent=e.message}}
+$('#go').onclick=async()=>{try{sessionStorage.setItem('tok',$('#tok').value)}catch(e){}try{DEPTS=(await api('/departments')).labellable;show()}catch(e){$('#msg').textContent=e.message}};
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));b.classList.add('on');tab=b.dataset.t;if(DEPTS.length)show()});
+</script></body></html>

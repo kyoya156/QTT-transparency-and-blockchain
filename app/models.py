@@ -2,7 +2,7 @@
 import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func, literal_column
+from sqlalchemy import ARRAY, JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, func, literal_column
 from sqlalchemy.orm import Mapped, column_property, mapped_column
 
 from .config import settings
@@ -28,6 +28,8 @@ class Chunk(Base):
     title: Mapped[str | None] = mapped_column(Text(), nullable=True)
     part: Mapped[int | None] = mapped_column(Integer, nullable=True)
     source_date: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Phong ban duoc doc chunk nay (admin luon duoc). Rong = chua gan nhan = chi admin. RLS dung cot nay.
+    labels: Mapped[list] = mapped_column(ARRAY(String(32)).with_variant(JSON(), "sqlite"), default=list)
     crawled_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     synced_at: Mapped[datetime.datetime] = _now()
     # NULL = chua embed (hoac noi dung vua doi). M2 se dien.
@@ -92,3 +94,37 @@ class Handoff(Base):
     transcript: Mapped[str] = mapped_column(Text())
     status: Mapped[str] = mapped_column(String(16), default="open")
     created_at: Mapped[datetime.datetime] = _now()
+
+
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(200), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    department: Mapped[str] = mapped_column(String(32))          # admin | finance | volunteers
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime.datetime] = _now()
+
+
+class AccessRule(Base):
+    """Nhan do admin gan: key = 'source:<type>:<id|*>' hoac 'tool:<ten>'; departments = phong ban (khong gom admin)."""
+    __tablename__ = "access_rules"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str] = mapped_column(String(400), unique=True, index=True)
+    departments: Mapped[list] = mapped_column(JSON, default=list)
+    updated_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    updated_at: Mapped[datetime.datetime] = _now()
+
+
+class AuditLog(Base):
+    """Chi them, khong sua/xoa (vai tro chatbot_app chi co INSERT)."""
+    __tablename__ = "audit_log"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    at: Mapped[datetime.datetime] = _now()
+    user_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    department: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    action: Mapped[str] = mapped_column(String(32), index=True)  # search | tool_denied | label_change | user_change
+    query: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    chunk_ids: Mapped[str | None] = mapped_column(Text(), nullable=True)   # JSON list
+    detail: Mapped[str | None] = mapped_column(Text(), nullable=True)

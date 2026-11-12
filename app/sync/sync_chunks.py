@@ -8,7 +8,7 @@ import hashlib
 from dateutil import parser as dateparser
 from sqlalchemy.orm import Session
 
-from .. import models
+from .. import access, models
 from ..config import settings
 from .crawler_client import ALLOWED_TYPES, CrawlerError, fetch_all
 
@@ -33,6 +33,7 @@ def reconcile(db: Session, items: list[dict], allow_empty: bool = False,
               max_delete_ratio: float | None = None) -> dict:
     ratio = settings.sync_max_delete_ratio if max_delete_ratio is None else max_delete_ratio
     existing = {c.src_id: c for c in db.query(models.Chunk).all()}
+    rules = access.load_source_rules(db)
     if existing and not items and not allow_empty:
         raise CrawlerError("crawler tra 0 chunk trong khi DB da co du lieu: huy de khong xoa nham")
 
@@ -55,7 +56,9 @@ def reconcile(db: Session, items: list[dict], allow_empty: bool = False,
                       source_date=_date(meta, "published_at"), crawled_at=_date(meta, "crawled_at"))
         c = existing.get(sid)
         if c is None:
-            db.add(models.Chunk(src_id=sid, content=text, content_hash=h, **fields))
+            db.add(models.Chunk(src_id=sid, content=text, content_hash=h,
+                                labels=access.effective_labels(rules, fields["source_type"], fields["source_id"]),
+                                **fields))
             counts["inserted"] += 1
         elif c.content_hash != h:
             c.content, c.content_hash = text, h

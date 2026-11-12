@@ -29,3 +29,26 @@ def init_db(engine: Engine) -> None:
                 "CREATE INDEX ix_chunks_fts ON chunks "
                 "USING gin (to_tsvector('simple'::regconfig, immutable_unaccent(content)));")
             c.exec_driver_sql("ALTER TABLE chunks ADD COLUMN IF NOT EXISTS crawled_at timestamptz;")
+        _access_control(engine)
+
+
+def _access_control(engine: Engine) -> None:
+    """Vai tro chatbot_app + RLS: nguoi dung chi doc duoc chunk co nhan trung phong ban (admin: tat ca).
+
+    Chunk chua gan nhan (labels rong) chi admin doc duoc. Idempotent.
+    """
+    with engine.begin() as c:
+        c.exec_driver_sql("ALTER TABLE chunks ADD COLUMN IF NOT EXISTS labels text[] NOT NULL DEFAULT '{}';")
+        c.exec_driver_sql(
+            "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'chatbot_app') "
+            "THEN CREATE ROLE chatbot_app NOLOGIN; END IF; END $$;")
+        c.exec_driver_sql("GRANT USAGE ON SCHEMA public TO chatbot_app;")
+        c.exec_driver_sql("GRANT SELECT ON chunks TO chatbot_app;")
+        c.exec_driver_sql("GRANT INSERT ON audit_log TO chatbot_app;")
+        c.exec_driver_sql("GRANT USAGE, SELECT ON SEQUENCE audit_log_id_seq TO chatbot_app;")
+        c.exec_driver_sql("ALTER TABLE chunks ENABLE ROW LEVEL SECURITY;")
+        c.exec_driver_sql("DROP POLICY IF EXISTS chunk_dept_read ON chunks;")
+        c.exec_driver_sql(
+            "CREATE POLICY chunk_dept_read ON chunks FOR SELECT TO chatbot_app USING ("
+            "current_setting('app.is_admin', true) = 'on' "
+            "OR labels && string_to_array(coalesce(current_setting('app.depts', true), ''), ','));")

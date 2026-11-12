@@ -1,12 +1,18 @@
+import pathlib
+
 from fastapi import Depends, FastAPI
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from . import models
+from .api import admin as admin_api, search as search_api
 from .db import engine, get_db
 from .migrations import init_db
 
-app = FastAPI(title="QNE public chatbot")
+app = FastAPI(title="Internal knowledge assistant")
+app.include_router(search_api.router)
+app.include_router(admin_api.router)
 
 
 @app.on_event("startup")
@@ -28,3 +34,9 @@ def health(db: Session = Depends(get_db)):
             "updated": last.updated, "deleted": last.deleted, "error": last.error,
         },
     }
+
+
+# Trang admin (HTML tinh): gan nhan du lieu/cong cu, nguoi dung, nhat ky.
+_STATIC = pathlib.Path(__file__).parent / "static"
+_STATIC.mkdir(exist_ok=True)
+app.mount("/admin", StaticFiles(directory=str(_STATIC), html=True), name="admin")
