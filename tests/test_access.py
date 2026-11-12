@@ -40,7 +40,7 @@ def hdr(tok):
 
 
 def test_clean_departments():
-    assert access.clean_departments(["Finance", "finance", "admin", "volunteers"]) == ["finance", "volunteers"]
+    assert access.clean_departments(["Finance", "finance", "admin", "volunteer"]) == ["finance", "volunteer"]
     with pytest.raises(ValueError):
         access.clean_departments(["hr"])
 
@@ -48,15 +48,15 @@ def test_clean_departments():
 def test_unlabelled_by_default_then_source_beats_type(db, admin):
     add_chunks(db, [("web", "p1"), ("web", "p2"), ("post", "f1")])
     assert labels(db, "p1") == []                                   # chua gan nhan = chi admin
-    access.set_source_rule(db, admin[0], "web", None, ["volunteers"])   # mac dinh theo loai
+    access.set_source_rule(db, admin[0], "web", None, ["volunteer"])   # mac dinh theo loai
     access.set_source_rule(db, admin[0], "web", "p2", ["finance"])      # rieng cho p2
     db.commit()
-    assert labels(db, "p1") == ["volunteers"]
+    assert labels(db, "p1") == ["volunteer"]
     assert labels(db, "p2") == ["finance"]
     assert labels(db, "f1") == []                                   # loai khac khong bi anh huong
     access.clear_source_rule(db, "web", "p2")
     db.commit()
-    assert labels(db, "p2") == ["volunteers"]                       # quay ve nhan theo loai
+    assert labels(db, "p2") == ["volunteer"]                       # quay ve nhan theo loai
     access.clear_source_rule(db, "web", None)
     db.commit()
     assert labels(db, "p1") == [] and labels(db, "p2") == []        # bo het nhan -> lai chi admin
@@ -139,3 +139,49 @@ def test_search_denied_then_allowed_and_audited(db, client, admin, monkeypatch):
     assert r.status_code == 200
     a = db.query(models.AuditLog).filter_by(action="search").one()
     assert a.department == "finance" and json.loads(a.chunk_ids) == [7, 9]
+
+
+def test_roles_dev_has_full_read_but_not_admin_api(db, client, admin):
+    dev, dtok = access.create_user(db, "d@x.org", "Dev", "dev")
+    db.commit()
+    assert access.can_use_tool(db, dev, "search_knowledge")             # dev dung moi cong cu
+    assert access.can_read_table(db, dev, "family_info")                # dev doc ca bang chua gan nhan
+    assert access.can_write_table(dev, "student") and not access.can_write_table(dev, "audit_log")
+    assert client.get("/api/admin/sources", headers=hdr(dtok)).status_code == 403   # nhung khong vao admin
+    assert access.clean_departments(["dev", "admin", "finance"]) == ["finance"]
+
+
+def test_table_labels_defaults_and_read_only_roles(db, client, admin):
+    fin, _ = access.create_user(db, "f@x.org", "Fin", "finance")
+    vol, _ = access.create_user(db, "v@x.org", "Vol", "volunteer")
+    db.commit()
+    assert not access.can_read_table(db, fin, "bank_transaction")       # chua gan nhan -> chi admin/dev
+    assert client.post("/api/admin/access/tables/apply-defaults", headers=hdr(admin[1])).status_code == 200
+    assert access.can_read_table(db, fin, "bank_transaction") and access.can_read_table(db, fin, "sponsor")
+    assert not access.can_read_table(db, vol, "sponsor")                # volunteer khong thay thong tin nha tai tro
+    assert access.can_read_table(db, vol, "sponsorship_assignment") and access.can_read_table(db, vol, "student")
+    assert not access.can_read_table(db, fin, "student")
+    assert not access.can_read_table(db, vol, "family_info")            # nhay cam: mac dinh chi admin/dev
+    assert not access.can_write_table(fin, "bank_transaction")          # finance chi doc
+    # admin da chon thi khong bi de len
+    client.put("/api/admin/access/table/family_info", headers=hdr(admin[1]), json={"departments": ["volunteer"]})
+    client.post("/api/admin/access/tables/apply-defaults", headers=hdr(admin[1]))
+    assert access.can_read_table(db, vol, "family_info")
+    assert client.put("/api/admin/access/table/audit_log", headers=hdr(admin[1]),
+                      json={"departments": ["finance"]}).status_code == 422   # bang he thong khong gan nhan
+
+
+def test_core_grants_sql(db, admin):
+    access.apply_default_table_labels(db, admin[0])
+    sql = access.core_grants_sql(db)
+    assert "GRANT SELECT ON bank_transaction TO core_finance;" in sql
+    assert "GRANT SELECT ON bank_transaction TO core_volunteer;" not in sql
+    assert "GRANT SELECT ON student TO core_volunteer;" in sql
+    assert "GRANT SELECT ON family_info TO core_finance;" not in sql and "core_volunteer;" not in \
+        "\n".join(l for l in sql.splitlines() if "family_info" in l)
+    assert "GRANT INSERT ON audit_log TO core_dev;" in sql              # audit chi them
+    assert "GRANT INSERT, UPDATE ON bank_transaction TO core_dev;" in sql   # tai chinh khong xoa cung
+    assert "GRANT INSERT, UPDATE, DELETE ON student TO core_dev;" in sql
+    assert not any(l.startswith("GRANT") and ("core_finance" in l or "core_volunteer" in l) and "INSERT" in l
+                   for l in sql.splitlines())                             # finance/volunteer khong co quyen ghi
+    assert "app_user TO core_finance" not in sql

@@ -101,7 +101,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(String(200), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(120))
-    department: Mapped[str] = mapped_column(String(32))          # admin | finance | volunteers
+    department: Mapped[str] = mapped_column(String(32))          # admin | dev | finance | volunteer
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime.datetime] = _now()

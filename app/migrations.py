@@ -50,5 +50,5 @@ def _access_control(engine: Engine) -> None:
         c.exec_driver_sql("DROP POLICY IF EXISTS chunk_dept_read ON chunks;")
         c.exec_driver_sql(
             "CREATE POLICY chunk_dept_read ON chunks FOR SELECT TO chatbot_app USING ("
-            "current_setting('app.is_admin', true) = 'on' "
+            "current_setting('app.full_read', true) = 'on' "
             "OR labels && string_to_array(coalesce(current_setting('app.depts', true), ''), ','));")

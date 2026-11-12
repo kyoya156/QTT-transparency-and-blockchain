@@ -1,5 +1,5 @@
 """API cho dashboard admin: gan nhan du lieu/cong cu, quan ly nguoi dung, xem nhat ky. Chi admin."""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -96,6 +96,40 @@ def put_tool(tool: str, body: ToolRuleIn, admin=Depends(require_admin), db: Sess
     access.audit(db, admin, "label_change", detail={"kind": "tool", "tool": tool, "departments": deps})
     db.commit()
     return {"departments": deps}
+
+
+@router.get("/tables")
+def tables(_=Depends(require_admin), db: Session = Depends(get_db)):
+    """Bang cua Core DB va phong ban duoc doc. Bang chua gan nhan chi admin/dev doc duoc."""
+    return {"items": [{"table": t, "description": d, "kind": k, "departments": access.table_departments(db, t),
+                       "proposed": p, "labellable": k not in ("system", "audit")}
+                      for t, (d, p, k) in access.CORE_TABLES.items()]}
+
+
+@router.put("/access/table/{table}")
+def put_table(table: str, body: ToolRuleIn, admin=Depends(require_admin), db: Session = Depends(get_db)):
+    try:
+        deps = access.set_table_rule(db, admin, table, body.departments)
+    except ValueError as e:
+        raise _bad(e)
+    access.audit(db, admin, "label_change", detail={"kind": "table", "table": table, "departments": deps})
+    db.commit()
+    return {"departments": deps}
+
+
+@router.post("/access/tables/apply-defaults")
+def apply_defaults(admin=Depends(require_admin), db: Session = Depends(get_db)):
+    """Gan nhan de xuat cho cac bang chua co quy tac (khong de len lua chon da luu)."""
+    done = access.apply_default_table_labels(db, admin)
+    access.audit(db, admin, "label_change", detail={"kind": "table_defaults", "tables": done})
+    db.commit()
+    return {"applied": done}
+
+
+@router.get("/core-grants.sql")
+def core_grants(_=Depends(require_admin), db: Session = Depends(get_db)):
+    """SQL GRANT cho Core DB sinh tu nhan hien tai (de Topic 4 chay)."""
+    return Response(access.core_grants_sql(db), media_type="text/plain")
 
 
 @router.get("/users")

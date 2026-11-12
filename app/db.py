@@ -40,9 +40,9 @@ def user_scope(user):
     try:
         if db.get_bind().dialect.name == "postgresql":
             db.execute(text("SET LOCAL ROLE chatbot_app"))
-            db.execute(text("SELECT set_config('app.is_admin', :a, true), set_config('app.depts', :d, true), "
+            db.execute(text("SELECT set_config('app.full_read', :a, true), set_config('app.depts', :d, true), "
                             "set_config('app.user_id', :u, true)"),
-                       {"a": "on" if user.department == "admin" else "off", "d": user.department,
+                       {"a": "on" if user.department in ("admin", "dev") else "off", "d": user.department,
                         "u": str(user.id)})
         yield db
         db.commit()
