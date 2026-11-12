@@ -28,6 +28,15 @@
   --money: #146b45;
   --money-soft: #e6f4ed;
 
+  /* Severity is ordinal (high -> info is a position, not an identity), so this
+   * is one hue stepped by lightness, not four unrelated colors. Validated with
+   * the dataviz skill's validate_palette.js --ordinal: monotone L, adjacent
+   * ΔL >= 0.06, light-end contrast 2.08:1 on --bg, single hue (spread 0°). */
+  --sev-high: #8d0000;
+  --sev-medium: #bb4538;
+  --sev-low: #dd7769;
+  --sev-info: #e29d92;
+
   --radius: 12px;
   --side: 216px;
 }
@@ -252,6 +261,74 @@ body {
 .w-75{width:75%}.w-80{width:80%}.w-85{width:85%}.w-90{width:90%}.w-95{width:95%}
 .w-100{width:100%}
 
+/* ------------------------------------------------------------------ meter */
+/* "Luồng tiền": a Meter list -- several ratios against the same whole (the
+ * period's inbound or outbound total), one named row each, bars aligned. */
+
+.meter-group { display: flex; flex-direction: column; gap: 14px; }
+.meter-group-tight { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+
+.meter-row { font-size: 12.5px; }
+.meter-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 5px; }
+.meter-top .label { color: var(--text); }
+.meter-top .pct { color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
+.meter-note { margin: 4px 0 0; color: var(--muted); font-size: 11.5px; }
+.meter-note.heading { margin: 0 0 10px; color: var(--text); font-size: 12.5px; font-weight: 600; }
+
+/* ---------------------------------------------------------------- severity */
+/* Ranked horizontal bars, largest (most severe) first. Severity is ordinal --
+ * one hue stepped by lightness, see the --sev-* tokens in :root -- so a
+ * colored dot plus the name is the identity channel, never the hue alone. */
+
+.severity { display: flex; flex-direction: column; gap: 11px; }
+.sev-row {
+  display: grid;
+  grid-template-columns: 108px 1fr 42px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+.sev-name { display: flex; align-items: center; gap: 7px; color: var(--text); }
+.sev-dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+.sev-dot.high { background: var(--sev-high); }
+.sev-dot.medium { background: var(--sev-medium); }
+.sev-dot.low { background: var(--sev-low); }
+.sev-dot.info { background: var(--sev-info); }
+.sev-track { display: block; background: var(--surface-2); border-radius: 999px; height: 14px; overflow: hidden; }
+.sev-fill { display: block; height: 100%; border-radius: 999px; min-width: 3px; }
+.sev-fill.high { background: var(--sev-high); }
+.sev-fill.medium { background: var(--sev-medium); }
+.sev-fill.low { background: var(--sev-low); }
+.sev-fill.info { background: var(--sev-info); }
+.sev-row .n { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------ years-chart */
+/* Real bar chart: gridlines + axis ticks + a hover/focus tooltip, all as SVG
+ * attributes (never inline `style=`, which style-src 'self' drops). Hover
+ * color and the tooltip's show/hide are the two things that DO belong in
+ * this stylesheet, since they react to state rather than carry per-bar data. */
+
+/* The chart is laid out in JS to the container's actual pixel width (see
+ * renderYears), so the SVG renders at 1:1 — never stretched with a CSS
+ * width:100%, which would scale its text and strokes along with it. */
+.years-chart { overflow-x: auto; }
+.years-chart svg { display: block; }
+.chart-grid { stroke: var(--border); stroke-width: 1; }
+.chart-axis-y { fill: var(--muted); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.chart-axis-x { fill: var(--muted); font-size: 11px; }
+.chart-bar-hit { cursor: pointer; }
+.chart-bar-hit .chart-bar { fill: var(--accent); }
+.chart-bar-hit:hover .chart-bar,
+.chart-bar-hit:focus-visible .chart-bar { opacity: 0.8; }
+.chart-bar-hit:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chart-bar-hit .chart-bar-hitarea { fill: transparent; }
+
+.chart-tooltip { opacity: 0; transition: opacity 0.1s ease; }
+.chart-tooltip.show { opacity: 1; }
+.chart-tooltip rect { fill: var(--text); }
+.chart-tooltip .tt-value { fill: #fff8f0; font-weight: 700; }
+.chart-tooltip .tt-sub { fill: #e7d8cb; }
+
 /* ---------------------------------------------------------------- toolbar */
 
 .toolbar {
@@ -429,6 +506,33 @@ table.data .muted { color: var(--muted); }
 
 .hint { margin: 0 0 10px; font-size: 12.5px; color: var(--muted); }
 .hint.warn { color: var(--warn); }
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.93em;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+/* ----------------------------------------------------------------- schema */
+
+/* The SVG is a fixed 1406x950 canvas (one row per table group), so on a
+ * phone it scrolls horizontally inside the card rather than shrinking past
+ * the point its field labels become unreadable. */
+.schema-wrap {
+  overflow-x: auto;
+  margin: 0 -14px;
+  padding: 0 14px;
+  background: var(--bg);
+  border-radius: 8px;
+}
+.schema-wrap img { display: block; max-width: none; height: auto; width: 1406px; }
+
+@media (min-width: 1480px) {
+  .schema-wrap img { max-width: 100%; width: 100%; }
+}
 
 /* ------------------------------------------------------------------- foot */
 

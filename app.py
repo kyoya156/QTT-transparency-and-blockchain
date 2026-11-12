@@ -584,6 +584,21 @@ def admin_queue_payload(_params) -> dict:
             GROUP BY year ORDER BY year
             """
         ).fetchall()
+        # Same unit as `orphan` above (SUM of the per-allocation computed split,
+        # not the whole-transaction amount `_coverage` uses) so the two can be
+        # subtracted directly for the "luồng tiền" chart on the overview page.
+        allocated_total = scalar(
+            conn, "SELECT COALESCE(SUM(allocated_amount_computed), 0) FROM transaction_allocations"
+        )
+        severity_counts = {
+            row["severity"]: row["count"]
+            for row in conn.execute(
+                """
+                SELECT severity, COUNT(*) AS count FROM exception_queue
+                WHERE status = 'open' GROUP BY severity
+                """
+            ).fetchall()
+        }
 
         buckets = [
             _bucket(conn, "inbound_no_code", "Dòng vào không tìm thấy mã NE",
@@ -602,6 +617,11 @@ def admin_queue_payload(_params) -> dict:
     return {
         "buckets": buckets,
         "unmapped_by_year": [dict(r) for r in by_year],
+        "allocated_total": allocated_total,
+        "exceptions_by_severity": [
+            {"severity": level, "count": severity_counts.get(level, 0)}
+            for level in ("high", "medium", "low", "info")
+        ],
         "open_exceptions": open_exceptions,
         "pending_approvals": pending,
         "note": (

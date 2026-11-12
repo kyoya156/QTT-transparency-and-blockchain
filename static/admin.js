@@ -35,6 +35,9 @@
     outbound_unclassified: "Tiền ra chưa nối với đề nghị thanh toán của trường."
   };
 
+  var SEVERITY_ORDER = ["high", "medium", "low", "info"];
+  var SEVERITY_LABEL = { high: "Nghiêm trọng", medium: "Trung bình", low: "Thấp", info: "Thông tin" };
+
   // ------------------------------------------------------------- formatting
 
   function money(value) {
@@ -51,6 +54,18 @@
 
   function num(value) {
     return value === null || value === undefined ? "—" : nf.format(value);
+  }
+
+  function pct(value) {
+    if (value === null || value === undefined || isNaN(value)) return "—";
+    return value.toFixed(1).replace(".", ",") + "%";
+  }
+
+  // Rounded to a 5% step so the fill's width comes from a prebuilt `.w-NN`
+  // class, never a `style=""` attribute — `style-src 'self'` drops those.
+  function widthStep(value, max) {
+    if (!value || value <= 0 || !max) return 0;
+    return Math.max(5, Math.round((value / max) * 20) * 5);
   }
 
   function date(value) {
@@ -151,7 +166,68 @@
     }).join("");
 
     renderStatus();
+    renderFlow();
+    renderSeverity();
     renderYears(state.queue.unmapped_by_year);
+  }
+
+  // One row = one ratio against `total` (the SAME total for every row in a
+  // group), aligned bars: a Meter list, not an independent chart per row.
+  function meterRow(label, amount, total) {
+    var ratio = total > 0 ? amount / total : 0;
+    return '<div class="meter-row">' +
+      '<div class="meter-top"><span class="label">' + esc(label) + "</span>" +
+      '<span class="pct">' + esc(pct(ratio * 100)) + "</span></div>" +
+      '<span class="year-track"><span class="year-fill w-' +
+        widthStep(amount, total) + '"></span></span>' +
+      '<p class="meter-note">' + esc(compact(amount)) + " / " + esc(compact(total)) + "</p>" +
+      "</div>";
+  }
+
+  function renderFlow() {
+    var byKey = {};
+    (state.queue.buckets || []).forEach(function (bucket) { byKey[bucket.key] = bucket; });
+    var coverage = state.summary.coverage || {};
+    var noProfileAmount = (byKey.code_no_profile || {}).amount || 0;
+    var unclassifiedAmount = (byKey.outbound_unclassified || {}).amount || 0;
+
+    var inboundTotal = coverage.inbound_total || 0;
+    // Same unit as `noProfileAmount` (both sum `allocated_amount_computed`),
+    // so the subtraction below is apples-to-apples — see the comment on
+    // `allocated_total` in admin_queue_payload.
+    var allocatedTotal = state.queue.allocated_total || 0;
+    var hasProfileAmount = Math.max(0, allocatedTotal - noProfileAmount);
+
+    var outbound = (state.summary.transactions || {}).outbound || {};
+    var outboundTotal = outbound.total || 0;
+    var classifiedAmount = Math.max(0, outboundTotal - unclassifiedAmount);
+
+    el("flow-in").innerHTML =
+      '<p class="meter-note heading">Tiền vào · tổng ' + esc(compact(inboundTotal)) + "</p>" +
+      meterRow("Đã gán mã NE", allocatedTotal, inboundTotal) +
+      meterRow("— trong đó, mã có hồ sơ học sinh", hasProfileAmount, inboundTotal);
+
+    el("flow-out").innerHTML =
+      '<p class="meter-note heading">Tiền ra · tổng ' + esc(compact(outboundTotal)) + "</p>" +
+      meterRow("Đã phân loại kế toán", classifiedAmount, outboundTotal);
+  }
+
+  function renderSeverity() {
+    var rows = state.queue.exceptions_by_severity || [];
+    var byKey = {};
+    rows.forEach(function (row) { byKey[row.severity] = row.count; });
+    var max = SEVERITY_ORDER.reduce(function (best, key) {
+      return Math.max(best, byKey[key] || 0);
+    }, 1);
+
+    el("severity").innerHTML = SEVERITY_ORDER.map(function (key) {
+      var count = byKey[key] || 0;
+      return '<div class="sev-row"><span class="sev-name"><span class="sev-dot ' + key +
+        '"></span>' + esc(SEVERITY_LABEL[key]) + "</span>" +
+        '<span class="sev-track"><span class="sev-fill ' + key + " w-" +
+          widthStep(count, max) + '"></span></span>' +
+        '<span class="n">' + esc(num(count)) + "</span></div>";
+    }).join("");
   }
 
   function renderStatus() {
@@ -175,20 +251,152 @@
     }).join("");
   }
 
+  // ------------------------------------------------------------ years chart
+  //
+  // A real bar chart (gridlines, axis ticks, hover/focus tooltip) instead of
+  // the old plain bar list. Every number it draws comes from SVG geometry
+  // attributes (x/y/width/height/d), set directly — never a `style=""`
+  // attribute, which `style-src 'self'` silently drops.
+
+  function niceMax(value) {
+    if (value <= 0) return 1;
+    var mag = Math.pow(10, Math.floor(Math.log(value) / Math.LN10));
+    var steps = [1, 2, 2.5, 5, 10];
+    for (var i = 0; i < steps.length; i++) {
+      var candidate = steps[i] * mag;
+      if (candidate >= value) return candidate;
+    }
+    return 10 * mag;
+  }
+
+  // A rect with only its top two corners rounded (a plain `rx` rounds all
+  // four, which would un-square the baseline — see marks-and-anatomy.md).
+  function roundedTopRectPath(x, y, w, h, r) {
+    if (h <= 0 || w <= 0) return "";
+    r = Math.min(r, w / 2, h);
+    return "M" + x + "," + (y + r) +
+      " Q" + x + "," + y + " " + (x + r) + "," + y +
+      " H" + (x + w - r) +
+      " Q" + (x + w) + "," + y + " " + (x + w) + "," + (y + r) +
+      " V" + (y + h) +
+      " H" + x + " Z";
+  }
+
+  var YEARS_MARGIN = { top: 14, right: 16, bottom: 24, left: 50 };
+  var YEARS_PLOT_H = 130;
+
+  // Bars stay <= 24px thick (never fill the slot — marks-and-anatomy.md) no
+  // matter how wide the card is; leftover room becomes air between bars
+  // (more gap), not fatter bars. Few bars in a wide card centers instead of
+  // stretching corner to corner.
+  function yearsBarLayout(n, availableW) {
+    var maxBarW = 24, minBarW = 6, minGap = 10, maxGap = 56;
+    var barW = maxBarW;
+    var gap = n > 1 ? (availableW - n * barW) / (n - 1) : 0;
+    if (gap < minGap) {
+      gap = minGap;
+      barW = Math.max(minBarW, (availableW - (n - 1) * gap) / n);
+    } else if (gap > maxGap) {
+      gap = maxGap;
+    }
+    var innerW = n * barW + (n - 1) * gap;
+    var offset = Math.max(0, (availableW - innerW) / 2);
+    return { barW: barW, gap: gap, innerW: innerW, offset: offset };
+  }
+
   function renderYears(rows) {
     if (!rows || !rows.length) {
       el("years").innerHTML = '<p class="empty">Chưa có dòng nào.</p>';
       return;
     }
-    var max = rows.reduce(function (best, row) { return Math.max(best, row.count); }, 1);
-    el("years").innerHTML = rows.map(function (row) {
-      // Rounded to a 5% step so the width comes from a class, not a style
-      // attribute — `style-src 'self'` would drop the attribute.
-      var step = Math.max(5, Math.round((row.count / max) * 20) * 5);
-      return '<div class="year-row"><span class="yr">' + esc(row.year) + "</span>" +
-        '<span class="year-track"><span class="year-fill w-' + step + '"></span></span>' +
-        '<span class="n">' + esc(num(row.count)) + "</span></div>";
+    var m = YEARS_MARGIN;
+    var plotH = YEARS_PLOT_H;
+    var containerW = el("years").clientWidth || 600;
+    var availableW = Math.max(120, containerW - m.left - m.right);
+    var layout = yearsBarLayout(rows.length, availableW);
+    var barW = layout.barW, gap = layout.gap;
+    var startX = m.left + layout.offset;
+    var width = containerW;
+    var height = m.top + plotH + m.bottom;
+    var gridEndX = startX + layout.innerW;
+
+    var maxCount = rows.reduce(function (best, row) { return Math.max(best, row.count); }, 0);
+    var top = niceMax(maxCount || 1);
+    var ticks = [0, top / 2, top];
+
+    var grid = ticks.map(function (tick) {
+      var y = m.top + plotH - (tick / top) * plotH;
+      return '<line class="chart-grid" x1="' + m.left + '" x2="' + gridEndX.toFixed(1) +
+        '" y1="' + y.toFixed(1) + '" y2="' + y.toFixed(1) + '" />' +
+        '<text class="chart-axis-y" x="' + (m.left - 8) + '" y="' + (y + 3.5).toFixed(1) +
+        '" text-anchor="end">' + esc(num(Math.round(tick))) + "</text>";
     }).join("");
+
+    var bars = rows.map(function (row, i) {
+      var x = startX + i * (barW + gap);
+      var h = top > 0 ? (row.count / top) * plotH : 0;
+      var y = m.top + plotH - h;
+      var cx = x + barW / 2;
+      var hitX = x - gap / 2;
+      var hitW = barW + gap;
+      var label = "Năm " + row.year + ": " + num(row.count) + " dòng, " + compact(row.amount);
+      return '<g class="chart-bar-hit" tabindex="0" role="img" aria-label="' + esc(label) + '"' +
+        ' data-year="' + esc(row.year) + '" data-count="' + esc(num(row.count)) +
+        '" data-amount="' + esc(compact(row.amount)) + '" data-cx="' + cx.toFixed(1) +
+        '" data-top="' + y.toFixed(1) + '">' +
+        '<rect class="chart-bar-hitarea" x="' + hitX.toFixed(1) + '" y="' + m.top +
+          '" width="' + hitW.toFixed(1) + '" height="' + plotH + '" />' +
+        '<path class="chart-bar" d="' + roundedTopRectPath(x, y, barW, h, 4) + '" />' +
+        "<title>" + esc(label) + "</title>" +
+        '<text class="chart-axis-x" x="' + cx.toFixed(1) + '" y="' + (m.top + plotH + 17) +
+          '" text-anchor="middle">' + esc(row.year) + "</text>" +
+        "</g>";
+    }).join("");
+
+    el("years").innerHTML =
+      '<svg viewBox="0 0 ' + width + " " + height + '" width="' + width + '" height="' + height +
+      '" role="group" aria-label="Tiền vào chưa gán mã, theo năm">' +
+      grid + bars +
+      '<g class="chart-tooltip" id="years-tip" aria-hidden="true">' +
+        '<rect x="0" y="0" width="90" height="38" rx="6"></rect>' +
+        '<text class="tt-value" id="years-tip-value" x="9" y="16"></text>' +
+        '<text class="tt-sub" id="years-tip-sub" x="9" y="30"></text>' +
+      "</g>" +
+      "</svg>";
+  }
+
+  function showYearsTooltip(group) {
+    var svg = group.closest("svg");
+    var tip = el("years-tip");
+    if (!svg || !tip) return;
+    var valueText = el("years-tip-value");
+    var subText = el("years-tip-sub");
+    valueText.textContent = group.getAttribute("data-amount");
+    subText.textContent = group.getAttribute("data-year") + " · " + group.getAttribute("data-count") + " dòng";
+
+    // Size the chip to the text actually rendered (accurate, no guessing at
+    // character widths) rather than a fixed box that either clips or floats.
+    var padX = 9, padTop = 11, padBottom = 9, lineGap = 14;
+    var w = Math.max(valueText.getBBox().width, subText.getBBox().width) + padX * 2;
+    var h = padTop + lineGap + padBottom;
+    var rect = tip.querySelector("rect");
+    rect.setAttribute("width", w.toFixed(1));
+    rect.setAttribute("height", h.toFixed(1));
+    valueText.setAttribute("x", padX);
+    subText.setAttribute("x", padX);
+
+    var cx = parseFloat(group.getAttribute("data-cx"));
+    var top = parseFloat(group.getAttribute("data-top"));
+    var svgWidth = parseFloat(svg.getAttribute("viewBox").split(" ")[2]);
+    var tx = Math.min(Math.max(cx - w / 2, 2), svgWidth - w - 2);
+    var ty = Math.max(top - h - 8, 2);
+    tip.setAttribute("transform", "translate(" + tx.toFixed(1) + "," + ty.toFixed(1) + ")");
+    tip.classList.add("show");
+  }
+
+  function hideYearsTooltip() {
+    var tip = el("years-tip");
+    if (tip) tip.classList.remove("show");
   }
 
   // --------------------------------------------------------------- filters
@@ -414,7 +622,7 @@
   }
 
   function show(view) {
-    ["overview", "queue", "lookup"].forEach(function (name) {
+    ["overview", "queue", "lookup", "schema"].forEach(function (name) {
       el("view-" + name).hidden = name !== view;
     });
     Array.prototype.forEach.call(document.querySelectorAll("#nav a"), function (link) {
@@ -444,6 +652,12 @@
         el("q").value = current.query.q;
         doSearch(current.query.q);
       }
+      return;
+    }
+
+    if (current.view === "schema") {
+      el("page-title").textContent = "Sơ đồ CSDL";
+      el("page-sub").textContent = "Cấu trúc bảng và luồng dữ liệu, để hiểu hệ thống chạy thế nào.";
       return;
     }
 
@@ -497,6 +711,40 @@
 
     el("more-btn").addEventListener("click", function () {
       renderQueueRoute(state.bucket, state.year, true);
+    });
+
+    // Delegated so the chart can be rebuilt on every render without
+    // re-attaching listeners (same pattern as queue-body above). pointerover/
+    // pointerout bubble (pointerenter/pointerleave don't), which is what
+    // makes delegation possible here.
+    el("years").addEventListener("pointerover", function (event) {
+      var bar = event.target.closest(".chart-bar-hit");
+      if (bar) showYearsTooltip(bar);
+    });
+    el("years").addEventListener("pointerout", function (event) {
+      var bar = event.target.closest(".chart-bar-hit");
+      var to = event.relatedTarget && event.relatedTarget.closest
+        ? event.relatedTarget.closest(".chart-bar-hit") : null;
+      if (bar && to !== bar) hideYearsTooltip();
+    });
+    el("years").addEventListener("focusin", function (event) {
+      var bar = event.target.closest(".chart-bar-hit");
+      if (bar) showYearsTooltip(bar);
+    });
+    el("years").addEventListener("focusout", function (event) {
+      var bar = event.target.closest(".chart-bar-hit");
+      if (bar) hideYearsTooltip();
+    });
+
+    // The chart is laid out to the container's pixel width (see
+    // yearsBarLayout), so a width change — the sidebar's 820px breakpoint,
+    // a rotated phone — needs a real re-layout, not just CSS scaling.
+    var yearsResizeTimer = null;
+    window.addEventListener("resize", function () {
+      clearTimeout(yearsResizeTimer);
+      yearsResizeTimer = setTimeout(function () {
+        if (state.queue && state.queue.unmapped_by_year) renderYears(state.queue.unmapped_by_year);
+      }, 150);
     });
 
     window.addEventListener("hashchange", route);

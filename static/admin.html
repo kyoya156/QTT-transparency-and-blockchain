@@ -28,6 +28,7 @@
       <a href="#/overview" data-view="overview">Tổng quan</a>
       <a href="#/queue" data-view="queue">Hàng đợi</a>
       <a href="#/lookup" data-view="lookup">Tra cứu</a>
+      <a href="#/schema" data-view="schema">Sơ đồ CSDL</a>
     </nav>
 
     <div class="side-foot">
@@ -73,12 +74,31 @@
         </section>
       </div>
 
+      <div class="grid-2">
+        <section class="card">
+          <div class="card-head">
+            <h2>Luồng tiền</h2>
+            <p class="sub">Mỗi dòng là % trên tổng tiền vào/ra — số suy ra, xem footer.</p>
+          </div>
+          <div id="flow-in" class="meter-group"></div>
+          <div id="flow-out" class="meter-group meter-group-tight"></div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2>Ngoại lệ đang mở, theo mức độ</h2>
+            <p class="sub">Từ <code>exception_queue</code>, xếp từ nghiêm trọng nhất.</p>
+          </div>
+          <div id="severity" class="severity"></div>
+        </section>
+      </div>
+
       <section class="card">
         <div class="card-head">
           <h2>Tiền vào chưa gán mã, theo năm</h2>
-          <p class="sub">Cột dài nhất là năm còn nợ nhiều nhất.</p>
+          <p class="sub">Di chuột hoặc focus vào một cột để xem số chính xác.</p>
         </div>
-        <div id="years" class="years"></div>
+        <div id="years" class="years-chart"></div>
       </section>
     </section>
 
@@ -119,6 +139,28 @@
         Nhập mã NE (có hoặc không có hậu tố S/T), mã ACN, hoặc số tham chiếu.
       </p>
       <div id="result" class="result" hidden aria-live="polite"></div>
+    </section>
+
+    <!-- ------------------------------------------------------------ schema -->
+    <section id="view-schema" class="view" hidden>
+      <section class="card">
+        <div class="card-head">
+          <h2>16 bảng, nhóm theo luồng tiền</h2>
+          <p class="sub">
+            Liền = khóa ngoại thật trong <code>schema.py</code>. Đứt = luồng nghiệp vụ
+            (nạp dữ liệu, phát sinh ngoại lệ, chờ duyệt, tổng hợp kỳ) — không có khóa ngoại.
+          </p>
+        </div>
+        <div class="schema-wrap">
+          <img src="/assets/db-schema.svg" width="1406" height="950"
+               alt="Sơ đồ CSDL: 4 vùng — dữ liệu tham chiếu, giao dịch ngân hàng, đối soát &amp; giải ngân,
+                    quản trị &amp; giám sát — với khóa ngoại thật và luồng nghiệp vụ nối giữa chúng." />
+        </div>
+        <p class="hint">
+          Sinh ra từ <code>schema.py</code> (phiên bản 2.0). Xem
+          <code>docs/ERD_VA_LUONG_LOI.md</code> để biết luồng lỗi theo từng gate đối soát.
+        </p>
+      </section>
     </section>
 
   </main>
