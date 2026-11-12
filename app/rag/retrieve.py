@@ -12,6 +12,7 @@ Two deliberate choices worth knowing before tuning:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
@@ -36,12 +37,35 @@ def _vector_literal(vector: list[float]) -> str:
     return "[" + ",".join(f"{value:.7f}" for value in vector) + "]"
 
 
+_TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
+_MAX_QUERY_TERMS = 32
+
+
 def _tsquery(query_text: str):
-    return func.plainto_tsquery(_SIMPLE_CONFIG, func.immutable_unaccent(query_text))
+    """OR the question's words together.
+
+    plainto_tsquery ANDs every term, so a real question - "học bổng được giải ngân
+    khi nào" - matched nothing at all and the keyword side silently died on the
+    input that matters most. OR restores recall; ts_rank still ranks chunks that
+    match more of the words higher. Only letters and digits survive, so no
+    tsquery operator can be injected through the question.
+    """
+    terms: list[str] = []
+    for token in _TOKEN_RE.findall(query_text.lower()):
+        if len(token) < 2 or token in terms:
+            continue
+        terms.append(token)
+        if len(terms) >= _MAX_QUERY_TERMS:
+            break
+    if not terms:
+        return None
+    return func.to_tsquery(_SIMPLE_CONFIG, func.immutable_unaccent(" | ".join(terms)))
 
 
 def _fts_rows(session: Session, query_text: str, source_types: list[str], limit: int) -> list[Any]:
     tsquery = _tsquery(query_text)
+    if tsquery is None:
+        return []
     rank = func.ts_rank(Chunk.tsv, tsquery)
     statement = (
         select(Chunk, rank.label("fts_rank"))
@@ -107,15 +131,21 @@ class RetrievalResult:
 
     @property
     def is_confident(self) -> bool:
-        """Enough evidence to answer, using raw scores and configurable thresholds."""
+        """Enough evidence to answer, judged on raw scores and configurable thresholds.
+
+        Vector similarity is the real signal. Keyword rank is not: with the
+        `simple` config there is no IDF, and OR-ing the question's words means a
+        chunk full of "quỹ ... không" ranks as high as one that actually answers.
+        Measured on the fixture: a nonsense question scored ts_rank 0.0369 while
+        a real one scored 0.0345 - no separation at all. So keyword-only results
+        (no embeddings) must clear a much higher bar before they may be called
+        confident, and by default they will not.
+        """
         if not self.chunks:
             return False
         settings = get_settings()
-        if (
-            self.best_similarity is not None
-            and self.best_similarity >= settings.retrieval_min_similarity
-        ):
-            return True
+        if self.best_similarity is not None:
+            return self.best_similarity >= settings.retrieval_min_similarity
         return (
             self.best_ts_rank is not None
             and self.best_ts_rank >= settings.retrieval_min_ts_rank

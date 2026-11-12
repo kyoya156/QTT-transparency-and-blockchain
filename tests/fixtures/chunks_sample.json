@@ -1,0 +1,96 @@
+{
+  "_note": "SYNTHETIC fixture only, mirrors the /api/public/chunks contract. Replace with a real crawler export (data/chunks.json). URLs are example.org placeholders.",
+  "chunks": [
+    {
+      "id": 101,
+      "source_type": "web",
+      "source_id": "page:gioi-thieu",
+      "content": "Quỹ hoạt động phi lợi nhuận, hỗ trợ các em nhỏ có hoàn cảnh khó khăn tiếp tục đến trường. Quỹ được thành lập năm 2019 và hiện có mặt tại ba tỉnh.",
+      "metadata": {
+        "url": "https://example.org/gioi-thieu",
+        "title": "Giới thiệu về quỹ",
+        "part": 1,
+        "of": 2,
+        "crawled_at": "2026-10-20T09:00:00Z"
+      }
+    },
+    {
+      "id": 102,
+      "source_type": "web",
+      "source_id": "page:gioi-thieu",
+      "content": "Mọi khoản đóng góp được công bố trong báo cáo tài chính hằng quý. Quỹ không thu bất kỳ khoản phí nào từ anh chị nhận nuôi.",
+      "metadata": {
+        "url": "https://example.org/gioi-thieu",
+        "title": "Giới thiệu về quỹ",
+        "part": 2,
+        "of": 2,
+        "crawled_at": "2026-10-20T09:00:00Z"
+      }
+    },
+    {
+      "id": 103,
+      "source_type": "web",
+      "source_id": "page:quy-trinh-nhan-nuoi",
+      "content": "Quy trình gồm ba bước: đăng ký thông tin, quỹ xác nhận trong vòng ba ngày làm việc, sau đó anh chị chuyển khoản theo thông tin quỹ gửi. Chỉ sau khi đăng nhập, anh chị mới xem được thông tin chi tiết của em mình nhận nuôi.",
+      "metadata": {
+        "url": "https://example.org/quy-trinh-nhan-nuoi",
+        "title": "Quy trình nhận nuôi",
+        "part": 1,
+        "of": 1,
+        "crawled_at": "2026-10-22T02:15:00Z"
+      }
+    },
+    {
+      "id": 104,
+      "source_type": "web",
+      "source_id": "page:hoc-bong",
+      "content": "Học bổng được giải ngân hai lần mỗi năm học, vào tháng 9 và tháng 2. Mức hỗ trợ hiện tại là 500.000 đồng mỗi tháng cho mỗi em.",
+      "metadata": {
+        "url": "https://example.org/hoc-bong",
+        "title": "Học bổng và mức hỗ trợ",
+        "part": 1,
+        "of": 1,
+        "crawled_at": "2026-10-18T11:30:00Z"
+      }
+    },
+    {
+      "id": 105,
+      "source_type": "web",
+      "source_id": "page:lien-he",
+      "content": "Anh chị có thể liên hệ quỹ qua hộp thư điện tử của văn phòng trong giờ hành chính. Câu hỏi gửi ngoài giờ sẽ được trả lời vào ngày làm việc kế tiếp.",
+      "metadata": {
+        "url": "https://example.org/lien-he",
+        "title": "Liên hệ",
+        "part": 1,
+        "of": 1,
+        "crawled_at": "2026-10-19T08:00:00Z"
+      }
+    },
+    {
+      "id": 201,
+      "source_type": "post",
+      "source_id": "post:2026-09-05-khai-giang",
+      "content": "Thông báo: năm học mới bắt đầu, quỹ đã trao 42 suất học bổng cho các em tại ba tỉnh. Cảm ơn anh chị nhận nuôi đã đồng hành trong suốt mùa hè.",
+      "metadata": {
+        "url": "https://facebook.com/example/posts/1",
+        "title": "Khai giảng năm học mới",
+        "part": 1,
+        "of": 1,
+        "post_date": "2026-09-05"
+      }
+    },
+    {
+      "id": 202,
+      "source_type": "post",
+      "source_id": "post:2026-10-01-trien-khai",
+      "content": "Đợt nhận nuôi mới mở đăng ký từ ngày 01/10 đến hết ngày 31/10. Anh chị vui lòng đọc kỹ quy trình trước khi đăng ký.",
+      "metadata": {
+        "url": "https://facebook.com/example/posts/2",
+        "title": "Mở đăng ký đợt nhận nuôi mới",
+        "part": 1,
+        "of": 1,
+        "post_date": "2026-10-01"
+      }
+    }
+  ]
+}

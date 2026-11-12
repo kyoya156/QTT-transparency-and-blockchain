@@ -47,12 +47,14 @@ class LocalEmbedder:
         device: str | None = None,
         dim: int | None = None,
         batch_size: int | None = None,
+        dtype: str | None = None,
     ) -> None:
         settings = get_settings()
         self.name = model_name or settings.embed_model
         self.dim = dim or settings.embed_dim
         self._device = device or settings.embed_device
         self._batch_size = batch_size or settings.embed_batch_size
+        self._dtype = (dtype or settings.embed_dtype or "float32").strip().lower()
         self._model = None
 
     @property
@@ -66,8 +68,25 @@ class LocalEmbedder:
                     "(hoặc chạy ask.py với --no-embed để chỉ tìm bằng từ khoá)"
                 ) from exc
 
-            logger.info("loading embedding model %s (device=%s)", self.name, self._device)
-            model = SentenceTransformer(self.name, device=self._device)
+            load_kwargs: dict[str, object] = {}
+            if self._dtype in {"float16", "half"}:
+                # BGE-M3 weights are ~2.2 GB; float32 loading fails outright on a
+                # machine whose commit limit is tight ("paging file is too small").
+                try:
+                    import torch
+                except ImportError as exc:  # pragma: no cover - depends on install
+                    raise EmbedderUnavailable(
+                        "EMBED_DTYPE=float16 cần torch: pip install -r requirements-embed.txt"
+                    ) from exc
+                load_kwargs["model_kwargs"] = {"torch_dtype": torch.float16}
+
+            logger.info(
+                "loading embedding model %s (device=%s, dtype=%s)",
+                self.name,
+                self._device,
+                self._dtype,
+            )
+            model = SentenceTransformer(self.name, device=self._device, **load_kwargs)
             actual_dim = model.get_sentence_embedding_dimension()
             if actual_dim and actual_dim != self.dim:
                 raise EmbedderError(
