@@ -2,11 +2,14 @@
 import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func, literal_column
+from sqlalchemy.orm import Mapped, column_property, mapped_column
 
 from .config import settings
 from .db import Base
+
+
+EMBED_DIM = settings.embed_dim
 
 
 def _now():
@@ -25,10 +28,20 @@ class Chunk(Base):
     title: Mapped[str | None] = mapped_column(Text(), nullable=True)
     part: Mapped[int | None] = mapped_column(Integer, nullable=True)
     source_date: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    crawled_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     synced_at: Mapped[datetime.datetime] = _now()
     # NULL = chua embed (hoac noi dung vua doi). M2 se dien.
     embedding: Mapped[list | None] = mapped_column(Vector(settings.embed_dim), nullable=True)
     embed_model: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Khop dung bieu thuc cua index GIN ix_chunks_fts (xem migrations.py); khong phai cot that.
+    tsv = column_property(
+        func.to_tsvector(literal_column("'simple'::regconfig"), func.immutable_unaccent(content)),
+        deferred=True,
+    )
+
+    @property
+    def display_date(self):
+        return self.source_date or self.crawled_at
 
 
 class SyncRun(Base):

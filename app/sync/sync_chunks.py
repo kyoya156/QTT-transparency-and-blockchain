@@ -17,8 +17,8 @@ def content_hash(text: str) -> str:
     return hashlib.sha256((text or "").encode("utf-8")).hexdigest()
 
 
-def _date(meta: dict):
-    for k in ("published_at", "crawled_at"):
+def _date(meta: dict, key: str):
+    for k in (key,):
         v = meta.get(k)
         if v:
             try:
@@ -52,7 +52,7 @@ def reconcile(db: Session, items: list[dict], allow_empty: bool = False,
         h = content_hash(text)
         fields = dict(source_type=it["source_type"], source_id=str(it.get("source_id", "")),
                       url=meta.get("url"), title=meta.get("title"), part=meta.get("part"),
-                      source_date=_date(meta))
+                      source_date=_date(meta, "published_at"), crawled_at=_date(meta, "crawled_at"))
         c = existing.get(sid)
         if c is None:
             db.add(models.Chunk(src_id=sid, content=text, content_hash=h, **fields))

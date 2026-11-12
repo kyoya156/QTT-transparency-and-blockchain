@@ -7,6 +7,11 @@ from ..config import settings
 ALLOWED_TYPES = ("web", "post")
 
 
+def effective_allowlist() -> set[str]:
+    """Cac source_type chatbot duoc phep dung."""
+    return set(ALLOWED_TYPES)
+
+
 class CrawlerError(RuntimeError):
     pass
 
