@@ -6,13 +6,14 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from . import models
-from .api import admin as admin_api, search as search_api
+from .api import admin as admin_api, search as search_api, tickets as tickets_api
 from .db import engine, get_db
 from .migrations import init_db
 
 app = FastAPI(title="Internal knowledge assistant")
 app.include_router(search_api.router)
 app.include_router(admin_api.router)
+app.include_router(tickets_api.router)
 
 
 @app.on_event("startup")

@@ -264,8 +264,10 @@ def find_user_by_token(db: Session, token: str):
     return u if u is not None and u.is_active else None
 
 
-def audit(db: Session, user, action: str, query: str | None = None, chunk_ids=None, detail: dict | None = None):
+def audit(db: Session, user, action: str, query: str | None = None, chunk_ids=None, detail: dict | None = None,
+          correlation_id: str | None = None):
     db.add(models.AuditLog(user_id=getattr(user, "id", None), department=getattr(user, "department", None),
                            action=action, query=query,
                            chunk_ids=json.dumps(list(chunk_ids)) if chunk_ids is not None else None,
-                           detail=json.dumps(detail, ensure_ascii=False) if detail else None))
+                           detail=json.dumps(detail, ensure_ascii=False) if detail else None,
+                           correlation_id=correlation_id))

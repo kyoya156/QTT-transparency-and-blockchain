@@ -128,3 +128,27 @@ class AuditLog(Base):
     query: Mapped[str | None] = mapped_column(Text(), nullable=True)
     chunk_ids: Mapped[str | None] = mapped_column(Text(), nullable=True)   # JSON list
     detail: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    correlation_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)   # vd "ticket:12"
+
+
+class CorrectionTicket(Base):
+    """Phieu de nghi sua so lieu. finance/volunteer de nghi -> admin duyet -> dev ap dung (tach nhiem vu)."""
+    __tablename__ = "correction_tickets"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    requester_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    table_name: Mapped[str] = mapped_column(String(64))
+    record_id: Mapped[str] = mapped_column(String(128))
+    field_name: Mapped[str] = mapped_column(String(64))
+    current_value: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    proposed_value: Mapped[str] = mapped_column(Text())
+    reason: Mapped[str] = mapped_column(Text())
+    evidence: Mapped[str | None] = mapped_column(Text(), nullable=True)      # tham chieu: ma giao dich, tin nhan...
+    status: Mapped[str] = mapped_column(String(16), default="open", index=True)  # open|approved|rejected|applied|cancelled
+    created_at: Mapped[datetime.datetime] = _now()
+    decided_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    decided_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    decision_note: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    applied_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    applied_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    applied_value: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    apply_note: Mapped[str | None] = mapped_column(Text(), nullable=True)

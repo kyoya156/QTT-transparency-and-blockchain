@@ -48,6 +48,9 @@ python -m scripts.create_user --email you@example.org --name "Name" --department
 ```
 Open `/admin`, paste the token, label sources and tools. Users call `POST /api/search` with their own token.
 
+## Corrections
+Finance and volunteer cannot edit data. They open a correction ticket; admin approves; dev applies. See `docs/CORRECTION_TICKETS.md`.
+
 ## Open questions
 - Who reviews and approves student photos (`student_image`, `image_result`, `publication`)? Unlabelled for now.
 - Should volunteers see `family_info` and `measurement`? Unlabelled for now (most sensitive).

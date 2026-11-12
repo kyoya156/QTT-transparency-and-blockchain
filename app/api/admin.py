@@ -172,4 +172,4 @@ def audit_log(limit: int = 100, action: str | None = None, _=Depends(require_adm
         q = q.filter(models.AuditLog.action == action)
     return {"items": [{"id": a.id, "at": a.at.isoformat() if a.at else None, "user_id": a.user_id,
                        "department": a.department, "action": a.action, "query": a.query,
-                       "chunk_ids": a.chunk_ids, "detail": a.detail} for a in q.limit(min(limit, 500))]}
+                       "chunk_ids": a.chunk_ids, "detail": a.detail, "correlation_id": a.correlation_id} for a in q.limit(min(limit, 500))]}

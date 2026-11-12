@@ -38,6 +38,7 @@ def _access_control(engine: Engine) -> None:
     Chunk chua gan nhan (labels rong) chi admin doc duoc. Idempotent.
     """
     with engine.begin() as c:
+        c.exec_driver_sql("ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS correlation_id varchar(64);")
         c.exec_driver_sql("ALTER TABLE chunks ADD COLUMN IF NOT EXISTS labels text[] NOT NULL DEFAULT '{}';")
         c.exec_driver_sql(
             "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'chatbot_app') "
