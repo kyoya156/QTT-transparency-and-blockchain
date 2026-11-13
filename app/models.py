@@ -43,7 +43,9 @@ class Chunk(Base):
 
     @property
     def display_date(self):
-        return self.source_date or self.crawled_at
+        """The date shown under an answer: the page's own date, else the crawl date."""
+        value = self.source_date or self.crawled_at
+        return value.date() if isinstance(value, datetime.datetime) else value
 
 
 class SyncRun(Base):
