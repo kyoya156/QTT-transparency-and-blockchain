@@ -1,5 +1,11 @@
 # Handover status — 11 Nov 2026
 
+> **Update after merging `main` (13 Nov 2026):** ingest, schema and CLI now come
+> from `main` (integer ids, labelled `reconcile()`, `scripts/sync_now.py
+> --allow-empty`). The UUID schema, `app/sync/reconcile.py`, the `--file/--dry-run`
+> sync and their tests were dropped from `vh-branch`; the retrieval findings,
+> thresholds and embedding notes below still describe the code that runs.
+
 Read this before promising anything to the organisers. It separates what is
 **verified by a run** from what is **written but never executed**, and from what
 does **not exist yet**.
