@@ -60,6 +60,7 @@ def embed_chunks(
             vectors = embedder.embed_documents([embed_text(chunk) for chunk in chunks])
             for chunk, vector in zip(chunks, vectors, strict=True):
                 chunk.embedding = vector
+                chunk.embed_model = embedder.name
             total += len(chunks)
         logger.info("embedded %d/%d", total, len(ids))
 
