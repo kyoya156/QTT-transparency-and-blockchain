@@ -65,6 +65,7 @@ def public_chunks(
     return JSONResponse(
         {
             "chunks": page,
+            "items": page,  # the sync client reads `items`, ask.py-era exports read `chunks`
             "next_after_id": int(page[-1]["id"]) if page else None,
             "limit": limit,
         }
