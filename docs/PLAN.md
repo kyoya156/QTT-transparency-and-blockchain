@@ -1,6 +1,6 @@
 # QNE public chatbot: prototype plan
 
-Status: draft v0.1, 5 Nov 2026. Based on the revised high-level design (draw.io: "public chatbot data flow" and "Flow 2 low level").
+Status: v0.2, 5 Nov 2026. M0 and M1 done. Based on the revised high-level design (draw.io: "public chatbot data flow" and "Flow 2 low level").
 
 ## 1. Goal and scope
 
@@ -38,12 +38,12 @@ New endpoint, read-only, separate from the staff `/api/internal/*`:
 - Header `X-API-Key` (own key for the chatbot, in `.env`).
 - **Server-side allowlist**: only `web` and `post` can be returned, whatever the query says. Messenger, comments and meal data are impossible to request. This is the privacy boundary.
 - Fields per chunk: `id, source_type, source_id, content, metadata` (url, title, part, of, crawled_at / post date).
-- Known gap: `document_chunks` has no created/updated column, so changes cannot be detected incrementally. At this size (17 pages + posts) the chatbot does a **full snapshot sync** and reconciles by `(source_type, source_id, part)`: insert new, update changed (content hash), delete missing.
+- Known gap: `document_chunks` has no created/updated column, so changes cannot be detected incrementally. At this size (17 pages + posts) the chatbot does a **full snapshot sync** and reconciles by the crawler's chunk id: insert new, update changed (content hash, embedding cleared), delete missing. Safety: abort if the crawler returns nothing or the sync would delete more than 50 % of the chunks.
 - Also needed later: a chunk status or access flag (public / internal) so the crawler can say what may be shown.
 
 ## 4. Data model (chatbot database)
 
-- `chunks`: `id, src_id, source_type, source_id, part, content, content_hash, url, title, source_date, synced_at, embedding vector(N), tsv tsvector`
+- `chunks`: `id, src_id (crawler chunk id, unique), source_type, source_id, part, content, content_hash, url, title, source_date, synced_at, embedding vector(N), embed_model`. Keyword search uses a GIN index on `to_tsvector('simple', f_unaccent(content))` instead of a stored column.
 - `conversations`, `messages`: `session_id, role, text, intent, evidence_ids, latency_ms, created_at`
 - `feedback`: `message_id, value (up/down), note`
 - `handoffs`: `conversation_id, reason, transcript, status, created_at`

@@ -1,4 +1,1 @@
-# local embeddings (free, no API key). Heavy: install only where needed (M2+).
-# Model: AITeamVN/Vietnamese_Embedding_v2 (1024 dims, fine-tuned from BGE-M3 for Vietnamese)
-sentence-transformers>=3.3,<4
-numpy>=1.26
+sentence-transformers>=3.0

@@ -1,81 +1,61 @@
-"""Database plumbing: engine, sessions, and the idempotent schema bootstrap."""
-
-from __future__ import annotations
-
-from collections.abc import Iterator
 from contextlib import contextmanager
-from functools import lru_cache
 
-from sqlalchemy import Engine, create_engine, text
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-from app.config import get_settings
-
-# `unaccent()` is STABLE, so it cannot be indexed or used in a generated column
-# until it is wrapped in an IMMUTABLE function. Vietnamese `đ` is not covered by
-# every unaccent rule set, so map it explicitly. Result: "CỔ PHẦN" and "co phan"
-# produce the same tsvector, which is what sponsors typing without accents need.
-_EXTENSION_SQL = (
-    "CREATE EXTENSION IF NOT EXISTS vector",
-    "CREATE EXTENSION IF NOT EXISTS unaccent",
-)
-
-_FUNCTION_SQL = """
-CREATE OR REPLACE FUNCTION immutable_unaccent(txt text)
-RETURNS text
-LANGUAGE sql
-IMMUTABLE
-PARALLEL SAFE
-AS $fn$
-    SELECT lower(translate(unaccent('unaccent', txt), 'đĐ', 'dd'))
-$fn$;
-"""
+from .config import settings
 
 
-@lru_cache(maxsize=1)
-def get_engine() -> Engine:
-    return create_engine(
-        get_settings().database_url,
-        pool_pre_ping=True,
-        future=True,
-    )
-    
+class Base(DeclarativeBase):
+    pass
 
-@lru_cache(maxsize=1)
-def get_sessionmaker() -> sessionmaker[Session]:
-    return sessionmaker(bind=get_engine(), expire_on_commit=False, future=True)
+
+engine = create_engine(settings.database_url or "sqlite://", pool_pre_ping=True)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
 @contextmanager
-def session_scope() -> Iterator[Session]:
-    """Commit on success, roll back on error, always close."""
-    session = get_sessionmaker()()
+def session_scope():
+    """Phien lam viec tu commit/rollback (dung ngoai FastAPI)."""
+    db = SessionLocal()
     try:
-        yield session
-        session.commit()
+        yield db
+        db.commit()
     except Exception:
-        session.rollback()
+        db.rollback()
         raise
     finally:
-        session.close()
+        db.close()
 
 
-def get_session() -> Iterator[Session]:
-    """FastAPI dependency: a read/write session per request."""
-    session = get_sessionmaker()()
+@contextmanager
+def user_scope(user):
+    """Phien lam viec CHAN theo quyen cua nguoi dung (RLS tren Postgres).
+
+    Vai tro chatbot_app khong phai chu bang nen chinh sach RLS ap dung; SET LOCAL chi co hieu luc
+    trong giao dich nay nen khong ro ri sang ket noi khac trong pool. Danh tinh lay tu phien dang nhap,
+    khong bao gio tu noi dung request.
+    """
+    db = SessionLocal()
     try:
-        yield session
+        if db.get_bind().dialect.name == "postgresql":
+            db.execute(text("SET LOCAL ROLE chatbot_app"))
+            db.execute(text("SELECT set_config('app.full_read', :a, true), set_config('app.depts', :d, true), "
+                            "set_config('app.user_id', :u, true)"),
+                       {"a": "on" if user.department in ("admin", "dev") else "off", "d": user.department,
+                        "u": str(user.id)})
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     finally:
-        session.close()
+        db.close()
 
 
-def init_schema(engine: Engine | None = None) -> None:
-    """Create extensions, the unaccent helper, and every table. Safe to re-run."""
-    from app.models import Base  # local import: models depend on settings
-
-    engine = engine or get_engine()
-    with engine.begin() as conn:
-        for statement in _EXTENSION_SQL:
-            conn.execute(text(statement))
-        conn.execute(text(_FUNCTION_SQL))
-    Base.metadata.create_all(engine)
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

@@ -1,157 +1,103 @@
-"""Full-snapshot sync: read the crawler, reconcile, record the run."""
+"""Doi chieu ban sao chunk voi crawler: them moi, cap nhat khi noi dung doi, xoa cai crawler khong con.
 
-from __future__ import annotations
+Khoa doi chieu = id chunk ben crawler (src_id). Noi dung doi -> embedding = NULL de M2 embed lai.
+"""
+import datetime
+import hashlib
 
-import logging
-from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
-
-from sqlalchemy import delete, select, tuple_
-from sqlalchemy.dialects.postgresql import insert as pg_insert
+from dateutil import parser as dateparser
 from sqlalchemy.orm import Session
 
-from app.db import session_scope
-from app.models import Chunk, SyncRun
-from app.sync.crawler_client import ChunkSource
-from app.sync.reconcile import Diff, ChunkRecord, diff_chunks
-
-logger = logging.getLogger(__name__)
-
-_UPSERT_COLUMNS = (
-    "src_id",
-    "of",
-    "content",
-    "content_hash",
-    "url",
-    "title",
-    "source_date",
-    "crawled_at",
-    "synced_at",
-)
+from .. import access, models
+from ..config import settings
+from .crawler_client import ALLOWED_TYPES, CrawlerError, fetch_all
 
 
-@dataclass(slots=True)
-class SyncStats:
-    fetched: int = 0
-    inserted: int = 0
-    updated: int = 0
-    deleted: int = 0
-    unchanged: int = 0
-    dry_run: bool = False
-
-    def as_dict(self) -> dict[str, int | bool]:
-        return asdict(self)
+def content_hash(text: str) -> str:
+    return hashlib.sha256((text or "").encode("utf-8")).hexdigest()
 
 
-def _row_values(record: ChunkRecord, synced_at: datetime) -> dict[str, object]:
-    return {
-        "src_id": record.src_id,
-        "source_type": record.source_type,
-        "source_id": record.source_id,
-        "part": record.part,
-        "of": record.of,
-        "content": record.content,
-        "content_hash": record.content_hash,
-        "url": record.url,
-        "title": record.title,
-        "source_date": record.source_date,
-        "crawled_at": record.crawled_at,
-        "synced_at": synced_at,
-    }
+def _date(meta: dict, key: str):
+    for k in (key,):
+        v = meta.get(k)
+        if v:
+            try:
+                d = dateparser.parse(str(v))
+                return d if d.tzinfo else d.replace(tzinfo=datetime.timezone.utc)
+            except (ValueError, OverflowError):
+                pass
+    return None
 
 
-def _apply_diff(session: Session, diff: Diff, synced_at: datetime, stats: SyncStats) -> None:
-    if diff.to_delete:
-        session.execute(
-            delete(Chunk).where(
-                tuple_(Chunk.source_type, Chunk.source_id, Chunk.part).in_(diff.to_delete)
-            )
-        )
-        stats.deleted = len(diff.to_delete)
+def reconcile(db: Session, items: list[dict], allow_empty: bool = False,
+              max_delete_ratio: float | None = None) -> dict:
+    ratio = settings.sync_max_delete_ratio if max_delete_ratio is None else max_delete_ratio
+    existing = {c.src_id: c for c in db.query(models.Chunk).all()}
+    rules = access.load_source_rules(db)
+    if existing and not items and not allow_empty:
+        raise CrawlerError("crawler tra 0 chunk trong khi DB da co du lieu: huy de khong xoa nham")
 
-    rows = [_row_values(record, synced_at) for record in diff.to_insert + diff.to_update]
-    if rows:
-        statement = pg_insert(Chunk).values(rows)
-        statement = statement.on_conflict_do_update(
-            constraint="uq_chunks_source_part",
-            set_={
-                **{column: statement.excluded[column] for column in _UPSERT_COLUMNS},
-                # an updated chunk has a stale vector; embed_chunks refills it
-                "embedding": None,
-            },
-        )
-        session.execute(statement)
-        stats.inserted = len(diff.to_insert)
-        stats.updated = len(diff.to_update)
+    counts = {"fetched": 0, "inserted": 0, "updated": 0, "deleted": 0, "rejected": 0}
+    seen: set[int] = set()
+    for it in items:
+        text = (it.get("content") or "").strip()
+        if it.get("source_type") not in ALLOWED_TYPES or not text or it.get("id") is None:
+            counts["rejected"] += 1
+            continue
+        sid = int(it["id"])
+        if sid in seen:
+            continue
+        seen.add(sid)
+        counts["fetched"] += 1
+        meta = it.get("metadata") or {}
+        h = content_hash(text)
+        fields = dict(source_type=it["source_type"], source_id=str(it.get("source_id", "")),
+                      url=meta.get("url"), title=meta.get("title"), part=meta.get("part"),
+                      source_date=_date(meta, "published_at"), crawled_at=_date(meta, "crawled_at"))
+        c = existing.get(sid)
+        if c is None:
+            db.add(models.Chunk(src_id=sid, content=text, content_hash=h,
+                                labels=access.effective_labels(rules, fields["source_type"], fields["source_id"]),
+                                **fields))
+            counts["inserted"] += 1
+        elif c.content_hash != h:
+            c.content, c.content_hash = text, h
+            c.embedding, c.embed_model = None, None
+            for k, v in fields.items():
+                setattr(c, k, v)
+            counts["updated"] += 1
+        else:
+            for k, v in fields.items():          # metadata doi (url, ngay) khong can embed lai
+                if getattr(c, k) != v:
+                    setattr(c, k, v)
+
+    gone = [c for sid, c in existing.items() if sid not in seen]
+    if existing and len(gone) / len(existing) > ratio and not allow_empty:
+        db.rollback()
+        raise CrawlerError(f"se xoa {len(gone)}/{len(existing)} chunk (> {ratio:.0%}): huy, kiem tra crawler")
+    for c in gone:
+        db.delete(c)
+    counts["deleted"] = len(gone)
+    db.commit()
+    return counts
 
 
-def _existing_hashes(session: Session) -> dict[tuple[str, str, int], str]:
-    rows = session.execute(
-        select(Chunk.source_type, Chunk.source_id, Chunk.part, Chunk.content_hash)
-    ).all()
-    return {(source_type, source_id, part): content_hash for source_type, source_id, part, content_hash in rows}
-
-
-def run_sync(source: ChunkSource, *, dry_run: bool = False) -> SyncStats:
-    """Mirror every chunk the crawler exposes. Re-running with the same data is a no-op."""
-    started_at = datetime.now(timezone.utc)
-    stats = SyncStats(dry_run=dry_run)
-
-    records = list(source.iter_records())
-    stats.fetched = len(records)
-
-    with session_scope() as session:
-        run = SyncRun(started_at=started_at, status="running", source=source.name)
-        session.add(run)
-        session.flush()
-
-        try:
-            diff = diff_chunks(_existing_hashes(session), records)
-            stats.unchanged = diff.unchanged
-            if dry_run:
-                stats.inserted = len(diff.to_insert)
-                stats.updated = len(diff.to_update)
-                stats.deleted = len(diff.to_delete)
-                logger.info(
-                    "dry run: +%d ~%d -%d =%d",
-                    stats.inserted,
-                    stats.updated,
-                    stats.deleted,
-                    stats.unchanged,
-                )
-                return stats
-
-            _apply_diff(session, diff, started_at, stats)
-            run.finished_at = datetime.now(timezone.utc)
-            run.status = "succeeded"
-            run.fetched = stats.fetched
-            run.inserted = stats.inserted
-            run.updated = stats.updated
-            run.deleted = stats.deleted
-            run.unchanged = stats.unchanged
-            session.flush()
-        except Exception as exc:  # noqa: BLE001 - recorded, then re-raised
-            session.rollback()
-            logger.exception("sync failed")
-            with session_scope() as failure:
-                failure.add(
-                    SyncRun(
-                        started_at=started_at,
-                        finished_at=datetime.now(timezone.utc),
-                        status="failed",
-                        source=source.name,
-                        fetched=stats.fetched,
-                        error=str(exc)[:2000],
-                    )
-                )
-            raise
-
-    logger.info(
-        "synced %d chunks: +%d ~%d -%d =%d",
-        stats.fetched,
-        stats.inserted,
-        stats.updated,
-        stats.deleted,
-        stats.unchanged,
-    )
-    return stats
+def run_sync(db: Session, allow_empty: bool = False, **fetch_kwargs) -> dict:
+    """Keo + doi chieu + ghi sync_runs (ca khi loi)."""
+    run = models.SyncRun()
+    db.add(run)
+    db.commit()
+    try:
+        items = fetch_all(**fetch_kwargs)
+        counts = reconcile(db, items, allow_empty=allow_empty)
+        run.fetched, run.inserted = counts["fetched"], counts["inserted"]
+        run.updated, run.deleted = counts["updated"], counts["deleted"]
+        return counts
+    except Exception as e:
+        db.rollback()
+        run.error = str(e)[:500]
+        raise
+    finally:
+        run.finished_at = datetime.datetime.now(datetime.timezone.utc)
+        db.add(run)
+        db.commit()

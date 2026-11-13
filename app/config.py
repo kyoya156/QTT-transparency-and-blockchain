@@ -1,72 +1,38 @@
-"""Typed settings for the chatbot. Everything configurable lives in .env."""
-
-from __future__ import annotations
-
-from functools import lru_cache
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
+import pathlib
+
+_ENV = pathlib.Path(__file__).resolve().parents[1] / ".env"
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-        case_sensitive=False,
-    )
-
-    # database
-    database_url: str = "postgresql+psycopg://qne:qne@localhost:5433/qne_chatbot"
-
-    # crawler contract
-    crawler_base_url: str = "http://localhost:8000"
+    # Khong dat gia tri mac dinh cho secret/DSN trong code: khai bao trong .env
+    database_url: str = ""
+    crawler_url: str = "http://host.docker.internal:8000"
     crawler_api_key: str = ""
-    crawler_page_size: int = 500
-    crawler_timeout_s: float = 30.0
-    sync_source_types: str = "web,post"
-
-    # sync source selection
-    sync_source: str = "file"
-    sync_file: str = "data/chunks.json"
-
-    # embeddings
-    embed_provider: str = "local"
-    embed_model: str = "AITeamVN/Vietnamese_Embedding_v2"
+    sync_page_size: int = 500
+    sync_timeout: float = 30.0
+    # Neu 1 lan sync se xoa nhieu hon ti le nay so chunk hien co -> huy (tranh mat du lieu khi crawler loi)
+    sync_max_delete_ratio: float = 0.5
+    # Embedding cuc bo, mien phi, khong gui du lieu ra ngoai (mac dinh cua RAG core)
+    embed_provider: str = "local"          # local | none
     embed_dim: int = 1024
+    embed_model: str = "AITeamVN/Vietnamese_Embedding_v2"
     embed_device: str = "cpu"
-    # float32 is the safe default; float16 halves the memory the model needs,
-    # which is what lets a 14 GB laptop with a small pagefile load BGE-M3 at all.
-    embed_dtype: str = "float32"
     embed_batch_size: int = 16
-
-    # retrieval
-    retrieval_k: int = 5
-    retrieval_pool: int = 20
+    retrieval_k: int = 6
+    retrieval_pool: int = 30
+    retrieval_min_similarity: float = 0.5
+    retrieval_min_ts_rank: float = 0.05
     rrf_k: int = 60
-    # measured, not guessed: on the fixture a real question's best chunk scored
-    # 0.612 cosine while a nonsense one scored 0.461, so 0.45 answered the
-    # nonsense. 0.55 rejects it and keeps the real match.
-    retrieval_min_similarity: float = 0.55
-    # only used when no vector signal exists at all (EMBED_PROVIDER=none)
-    retrieval_min_ts_rank: float = 0.30
+    openai_api_key: str = ""
+    llm_model: str = "gpt-4o-mini"
+    llm_base_url: str = ""
 
-    # llm (M3+)
-    llm_base_url: str = "https://api.openai.com/v1"
-    llm_model: str = ""
-    llm_api_key: str = ""
-
-    # api
-    api_port: int = 8080
-
-    @property
-    def configured_source_types(self) -> frozenset[str]:
-        return frozenset(
-            part.strip().lower()
-            for part in self.sync_source_types.split(",")
-            if part.strip()
-        )
+    model_config = SettingsConfigDict(env_file=str(_ENV), extra="ignore")
 
 
-@lru_cache(maxsize=1)
+settings = Settings()
+
+
 def get_settings() -> Settings:
-    return Settings()
+    return settings

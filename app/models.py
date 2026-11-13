@@ -1,188 +1,154 @@
-"""Schema for the chatbot-owned index and the conversation log."""
-
-from __future__ import annotations
-
-from datetime import date, datetime, timezone
-from typing import Any
-from uuid import UUID, uuid4
+"""Schema chatbot cong khai. Chunk la ban sao chi-doc cua noi dung crawler (web + bai Page)."""
+import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import (
-    CheckConstraint,
-    Computed,
-    Date,
-    DateTime,
-    ForeignKey,
-    Index,
-    Integer,
-    String,
-    Text,
-    UniqueConstraint,
-)
-from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import ARRAY, JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, func, literal_column
+from sqlalchemy.orm import Mapped, column_property, mapped_column
 
-from app.config import get_settings
-
-EMBED_DIM = get_settings().embed_dim
+from .config import settings
+from .db import Base
 
 
-def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+EMBED_DIM = settings.embed_dim
 
 
-class Base(DeclarativeBase):
-    pass
+def _now():
+    return mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Chunk(Base):
-    """One retrievable piece of crawler content. Owned by this repo, not the crawler."""
-
     __tablename__ = "chunks"
-
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    # crawler-side chunk id (kept for tracing back, not for querying)
-    src_id: Mapped[str | None] = mapped_column(String(128), index=True)
-    source_type: Mapped[str] = mapped_column(String(16), nullable=False)
-    source_id: Mapped[str] = mapped_column(String(256), nullable=False)
-    part: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    of: Mapped[int | None] = mapped_column(Integer)
-    content: Mapped[str] = mapped_column(Text, nullable=False)
-    # sha256 of content + url + title + source_date, so metadata drift also re-syncs
-    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
-    url: Mapped[str | None] = mapped_column(Text)
-    title: Mapped[str | None] = mapped_column(Text)
-    source_date: Mapped[date | None] = mapped_column(Date)
-    crawled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    synced_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow
-    )
-    embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBED_DIM))
-    # accent-insensitive full-text index: "co phan" matches "CỔ PHẦN"
-    tsv: Mapped[str | None] = mapped_column(
-        TSVECTOR,
-        Computed("to_tsvector('simple', immutable_unaccent(content))", persisted=True),
-    )
-
-    __table_args__ = (
-        UniqueConstraint("source_type", "source_id", "part", name="uq_chunks_source_part"),
-        CheckConstraint("source_type IN ('web', 'post')", name="ck_chunks_source_type"),
-        Index("ix_chunks_tsv", "tsv", postgresql_using="gin"),
-        Index(
-            "ix_chunks_embedding_hnsw",
-            "embedding",
-            postgresql_using="hnsw",
-            postgresql_ops={"embedding": "vector_cosine_ops"},
-        ),
+    id: Mapped[int] = mapped_column(primary_key=True)
+    src_id: Mapped[int] = mapped_column(Integer, unique=True, index=True)   # id cua chunk ben crawler
+    source_type: Mapped[str] = mapped_column(String(16), index=True)        # web | post
+    source_id: Mapped[str] = mapped_column(String(128), index=True)
+    content: Mapped[str] = mapped_column(Text())
+    content_hash: Mapped[str] = mapped_column(String(64))
+    url: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    title: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    part: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    source_date: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Phong ban duoc doc chunk nay (admin luon duoc). Rong = chua gan nhan = chi admin. RLS dung cot nay.
+    labels: Mapped[list] = mapped_column(ARRAY(String(32)).with_variant(JSON(), "sqlite"), default=list)
+    crawled_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    synced_at: Mapped[datetime.datetime] = _now()
+    # NULL = chua embed (hoac noi dung vua doi). M2 se dien.
+    embedding: Mapped[list | None] = mapped_column(Vector(settings.embed_dim), nullable=True)
+    embed_model: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Khop dung bieu thuc cua index GIN ix_chunks_fts (xem migrations.py); khong phai cot that.
+    tsv = column_property(
+        func.to_tsvector(literal_column("'simple'::regconfig"), func.immutable_unaccent(content)),
+        deferred=True,
     )
 
     @property
-    def display_date(self) -> date | None:
-        """What we label "cập nhật lần cuối".
-
-        A page's own update date wins; otherwise the crawl date. Deliberately not
-        part of the content hash: crawled_at changes on every crawl, and hashing
-        it would make every chunk look modified (and re-embedded) every night.
-        """
-        if self.source_date is not None:
-            return self.source_date
-        if self.crawled_at is not None:
-            return self.crawled_at.date()
-        return None
-
-
-class Conversation(Base):
-    __tablename__ = "conversations"
-
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    # anonymous browser session id (opaque, random); no identity in v1
-    session_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow
-    )
-    last_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow
-    )
-
-
-class Message(Base):
-    __tablename__ = "messages"
-
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    conversation_id: Mapped[UUID] = mapped_column(
-        ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    role: Mapped[str] = mapped_column(String(16), nullable=False)
-    text: Mapped[str] = mapped_column(Text, nullable=False)
-    intent: Mapped[str | None] = mapped_column(String(32))
-    # snapshot of the citations as they were when the answer was written
-    # ({chunk_id, url, title, source_date}); chunk ids alone would break on re-sync
-    evidence: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
-    latency_ms: Mapped[int | None] = mapped_column(Integer)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow
-    )
-
-    __table_args__ = (
-        CheckConstraint("role IN ('user', 'assistant')", name="ck_messages_role"),
-    )
-
-
-class Feedback(Base):
-    __tablename__ = "feedback"
-
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    message_id: Mapped[UUID] = mapped_column(
-        ForeignKey("messages.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    value: Mapped[str] = mapped_column(String(8), nullable=False)
-    note: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow
-    )
-
-    __table_args__ = (
-        CheckConstraint("value IN ('up', 'down')", name="ck_feedback_value"),
-    )
-
-
-class Handoff(Base):
-    __tablename__ = "handoffs"
-
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    conversation_id: Mapped[UUID] = mapped_column(
-        ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    reason: Mapped[str] = mapped_column(String(64), nullable=False)
-    # no name/phone/email by default: a volunteer replies in the same thread
-    transcript: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="open")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow
-    )
-
-    __table_args__ = (
-        CheckConstraint("status IN ('open', 'claimed', 'closed')", name="ck_handoffs_status"),
-    )
+    def display_date(self):
+        return self.source_date or self.crawled_at
 
 
 class SyncRun(Base):
     __tablename__ = "sync_runs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    started_at: Mapped[datetime.datetime] = _now()
+    finished_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    fetched: Mapped[int] = mapped_column(Integer, default=0)
+    inserted: Mapped[int] = mapped_column(Integer, default=0)
+    updated: Mapped[int] = mapped_column(Integer, default=0)
+    deleted: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="running")
-    source: Mapped[str | None] = mapped_column(String(256))
-    fetched: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    inserted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    updated: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    deleted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    unchanged: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    error: Mapped[str | None] = mapped_column(Text)
 
-    __table_args__ = (
-        CheckConstraint(
-            "status IN ('running', 'succeeded', 'failed')", name="ck_sync_runs_status"
-        ),
-    )
+class Conversation(Base):
+    __tablename__ = "conversations"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    session_id: Mapped[str] = mapped_column(String(64), index=True)
+    created_at: Mapped[datetime.datetime] = _now()
+
+
+class Message(Base):
+    __tablename__ = "messages"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    conversation_id: Mapped[int] = mapped_column(ForeignKey("conversations.id"), index=True)
+    role: Mapped[str] = mapped_column(String(16))                 # user | assistant
+    text: Mapped[str] = mapped_column(Text())
+    intent: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    evidence_ids: Mapped[str | None] = mapped_column(Text(), nullable=True)   # JSON list chunk id
+    latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime.datetime] = _now()
+
+
+class Feedback(Base):
+    __tablename__ = "feedback"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    message_id: Mapped[int] = mapped_column(ForeignKey("messages.id"), index=True)
+    value: Mapped[str] = mapped_column(String(8))                 # up | down
+    note: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    created_at: Mapped[datetime.datetime] = _now()
+
+
+class Handoff(Base):
+    __tablename__ = "handoffs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    conversation_id: Mapped[int] = mapped_column(ForeignKey("conversations.id"), index=True)
+    reason: Mapped[str] = mapped_column(String(64))
+    transcript: Mapped[str] = mapped_column(Text())
+    status: Mapped[str] = mapped_column(String(16), default="open")
+    created_at: Mapped[datetime.datetime] = _now()
+
+
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(200), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    department: Mapped[str] = mapped_column(String(32))          # admin | dev | finance | volunteer
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime.datetime] = _now()
+
+
+class AccessRule(Base):
+    """Nhan do admin gan: key = 'source:<type>:<id|*>' hoac 'tool:<ten>'; departments = phong ban (khong gom admin)."""
+    __tablename__ = "access_rules"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str] = mapped_column(String(400), unique=True, index=True)
+    departments: Mapped[list] = mapped_column(JSON, default=list)
+    updated_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    updated_at: Mapped[datetime.datetime] = _now()
+
+
+class AuditLog(Base):
+    """Chi them, khong sua/xoa (vai tro chatbot_app chi co INSERT)."""
+    __tablename__ = "audit_log"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    at: Mapped[datetime.datetime] = _now()
+    user_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    department: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    action: Mapped[str] = mapped_column(String(32), index=True)  # search | tool_denied | label_change | user_change
+    query: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    chunk_ids: Mapped[str | None] = mapped_column(Text(), nullable=True)   # JSON list
+    detail: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    correlation_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)   # vd "ticket:12"
+
+
+class CorrectionTicket(Base):
+    """Phieu de nghi sua so lieu. finance/volunteer de nghi -> admin duyet -> dev ap dung (tach nhiem vu)."""
+    __tablename__ = "correction_tickets"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    requester_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    table_name: Mapped[str] = mapped_column(String(64))
+    record_id: Mapped[str] = mapped_column(String(128))
+    field_name: Mapped[str] = mapped_column(String(64))
+    current_value: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    proposed_value: Mapped[str] = mapped_column(Text())
+    reason: Mapped[str] = mapped_column(Text())
+    evidence: Mapped[str | None] = mapped_column(Text(), nullable=True)      # tham chieu: ma giao dich, tin nhan...
+    status: Mapped[str] = mapped_column(String(16), default="open", index=True)  # open|approved|rejected|applied|cancelled
+    created_at: Mapped[datetime.datetime] = _now()
+    decided_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    decided_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    decision_note: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    applied_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    applied_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    applied_value: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    apply_note: Mapped[str | None] = mapped_column(Text(), nullable=True)
