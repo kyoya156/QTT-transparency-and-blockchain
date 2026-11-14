@@ -676,10 +676,47 @@
   var suggestState = { codes: [], activeIndex: -1, requestToken: 0 };
   var suggestTimer = null;
 
-  var SUGGEST_HINT = {
-    acn: "Danh mục nhà tài trợ đang trống — chưa gợi ý được theo mã ACN.",
-    blocked: "Không tra cứu bằng số điện thoại."
+  // What the box accepts. Shown whenever there is nothing better to offer, so
+  // nobody has to guess the format before they type.
+  var FORMATS = [
+    { kind: "ne", name: "Mã em (NE)", example: "NE01156", hint: "NE + số. Gõ 1156 hoặc NE 1156 cũng được; đuôi S/T là suất trưa/tối." },
+    { kind: "acn", name: "Mã nhà tài trợ (ACN)", example: "ACN00042", hint: "ACN + 5 chữ số." },
+    { kind: "reference", name: "Số tham chiếu ngân hàng", example: "YG26.000106", hint: "Có hoặc không có dấu chấm đều tìm được: 26000106." }
+  ];
+
+  var NOTHING_FOUND = {
+    ne: "Chưa có mã NE nào bắt đầu bằng",
+    acn: "Chưa thấy mã ACN nào bắt đầu bằng",
+    reference: "Chưa có số tham chiếu nào chứa",
+    blocked: "Số điện thoại không dùng để tra cứu.",
+    unknown: "Chưa nhận ra định dạng này."
   };
+
+  function openSuggest(html) {
+    var list = el("search-suggest");
+    list.innerHTML = html;
+    list.hidden = false;
+    el("q").setAttribute("aria-expanded", "true");
+  }
+
+  function guideHtml(payload) {
+    var kind = payload && payload.kind;
+    var typed = payload && payload.typed ? String(payload.typed) : "";
+    var lead = "";
+    if (typed && NOTHING_FOUND[kind]) {
+      lead = '<li class="suggest-hint suggest-lead">' + esc(NOTHING_FOUND[kind]) +
+        (kind === "blocked" || kind === "unknown" ? "" : ' "' + esc(typed) + '".') + "</li>";
+    }
+    return lead +
+      '<li class="suggest-head">Nhập theo một trong các dạng này</li>' +
+      FORMATS.map(function (f) {
+        return '<li class="suggest-example' + (f.kind === kind ? " is-match" : "") +
+          '" data-fill="' + esc(f.example) + '">' +
+          '<span class="ex-top"><span class="ex-name">' + esc(f.name) + "</span>" +
+            '<span class="code">' + esc(f.example) + "</span></span>" +
+          '<span class="ex-hint">' + esc(f.hint) + "</span></li>";
+      }).join("");
+  }
 
   function closeSuggest() {
     var list = el("search-suggest");
@@ -698,38 +735,42 @@
         '<span class="detail">' + esc(num(item.allocation_count)) + " dòng · " +
           esc(compact(item.total)) + "</span></li>";
     }
+    if (kind === "acn") {
+      return '<li class="suggest-item" id="sg-' + index + '" role="option">' +
+        '<span class="code">' + esc(item.acn_code) + "</span>" +
+        '<span class="detail">' + esc(num(item.tx_count)) + " giao dịch · " +
+          esc(compact(item.total)) + "</span></li>";
+    }
     return '<li class="suggest-item" id="sg-' + index + '" role="option">' +
       '<span class="code">' + esc(item.provider_tx_id) + "</span>" +
       '<span class="detail">' + (item.direction === "inbound" ? "vào" : "ra") + " · " +
         esc(compact(item.amount)) + " · " + esc(date(item.tx_time)) + "</span></li>";
   }
 
+  function itemCode(kind, item) {
+    return kind === "ne" ? item.ne_code : kind === "acn" ? item.acn_code : item.provider_tx_id;
+  }
+
   function renderSuggest(payload) {
-    var list = el("search-suggest");
     var items = payload.items || [];
+    var listed = payload.kind === "ne" || payload.kind === "acn" || payload.kind === "reference";
 
-    if ((payload.kind === "ne" || payload.kind === "reference") && items.length) {
-      suggestState.codes = items.map(function (item) {
-        return payload.kind === "ne" ? item.ne_code : item.provider_tx_id;
-      });
-      list.innerHTML = items.map(function (item, index) {
-        return suggestItemHtml(payload.kind, item, index);
-      }).join("");
-      list.hidden = false;
-      el("q").setAttribute("aria-expanded", "true");
+    if (listed && items.length) {
+      suggestState.codes = items.map(function (item) { return itemCode(payload.kind, item); });
+      suggestState.activeIndex = -1;
+      var fmt = FORMATS.filter(function (f) { return f.kind === payload.kind; })[0];
+      openSuggest(
+        '<li class="suggest-head">' + esc(payload.label || "Gợi ý — ↑ ↓ để chọn, Enter để tra") + "</li>" +
+        items.map(function (item, index) { return suggestItemHtml(payload.kind, item, index); }).join("") +
+        (fmt ? '<li class="suggest-hint">' + esc(fmt.name + " có dạng " + fmt.example + ". " + fmt.hint) + "</li>" : ""));
       return;
     }
 
-    var hint = SUGGEST_HINT[payload.kind];
-    if (hint) {
-      suggestState.codes = [];
-      list.innerHTML = '<li class="suggest-hint">' + esc(hint) + "</li>";
-      list.hidden = false;
-      el("q").setAttribute("aria-expanded", "true");
-      return;
-    }
-
-    closeSuggest();
+    // Nothing to pick from: teach the format instead of closing the box.
+    suggestState.codes = [];
+    suggestState.activeIndex = -1;
+    el("q").removeAttribute("aria-activedescendant");
+    openSuggest(guideHtml(payload));
   }
 
   function moveSuggestActive(delta) {
@@ -757,7 +798,7 @@
 
   function scheduleSuggest(value) {
     clearTimeout(suggestTimer);
-    if (!value.trim()) { closeSuggest(); return; }
+    if (!value.trim()) { suggestState.requestToken++; renderSuggest({ kind: "empty", items: [] }); return; }
     suggestTimer = setTimeout(function () {
       var token = ++suggestState.requestToken;
       getJSON("/api/admin/suggest?q=" + encodeURIComponent(value))
@@ -977,6 +1018,10 @@
       scheduleSuggest(event.target.value);
     });
 
+    el("q").addEventListener("focus", function () {
+      scheduleSuggest(el("q").value);
+    });
+
     el("q").addEventListener("keydown", function (event) {
       if (el("search-suggest").hidden) return;
       if (event.key === "ArrowDown") { event.preventDefault(); moveSuggestActive(1); }
@@ -988,6 +1033,16 @@
     // a selection — a blur would close the list before a click event on it
     // ever fires.
     el("search-suggest").addEventListener("mousedown", function (event) {
+      var example = event.target.closest(".suggest-example");
+      if (example) {
+        // Fill the box with the example so the person sees the shape, then
+        // keep suggesting from it.
+        event.preventDefault();
+        el("q").value = example.dataset.fill;
+        scheduleSuggest(example.dataset.fill);
+        el("q").focus();
+        return;
+      }
       var item = event.target.closest(".suggest-item");
       if (!item || !item.id) return;
       var index = Number(item.id.slice(3));

@@ -853,8 +853,10 @@ def admin_suggest_payload(params: dict) -> dict:
         digits = compact[2:] if compact.startswith("NE") else compact
         if digits and digits[-1] in {"S", "T"}:
             digits = digits[:-1]
-        if digits.isdigit() and digits != "":
-            with closing(database_connection()) as conn:
+        if digits and not digits.isdigit():
+            return {"kind": "ne", "items": [], "typed": raw}
+        with closing(database_connection()) as conn:
+            if digits:
                 rows = rows_to_dicts(
                     conn.execute(
                         """
@@ -870,14 +872,52 @@ def admin_suggest_payload(params: dict) -> dict:
                         (f"{digits}%", limit),
                     ).fetchall()
                 )
-            return {"kind": "ne", "items": rows}
-        return {"kind": "ne", "items": []}
+                return {"kind": "ne", "items": rows, "typed": raw}
+            # Only "NE" so far: the person has not typed a number yet, so
+            # offer the codes that carry the most money as starting points
+            # rather than an empty box.
+            rows = rows_to_dicts(
+                conn.execute(
+                    """
+                    SELECT ne_code,
+                           COUNT(*) AS allocation_count,
+                           COALESCE(SUM(allocated_amount_computed), 0) AS total
+                    FROM transaction_allocations
+                    GROUP BY ne_code
+                    ORDER BY total DESC, ne_code
+                    LIMIT ?
+                    """,
+                    (limit,),
+                ).fetchall()
+            )
+        return {"kind": "ne", "items": rows, "typed": raw, "label": "Mã nhận nhiều tiền nhất"}
 
     if compact.startswith("ACN"):
-        return {"kind": "acn", "items": [], "hint": "Danh mục nhà tài trợ đang trống."}
+        # ACN codes are not in a registry table; they only exist as tokens in
+        # the bank row's reference_tokens, so read them from there.
+        with closing(database_connection()) as conn:
+            token_rows = conn.execute(
+                """
+                SELECT reference_tokens, amount, direction
+                FROM bank_transactions
+                WHERE reference_tokens LIKE ?
+                """,
+                (f"%{compact}%",),
+            ).fetchall()
+        found: dict = {}
+        for tokens, amount, direction in token_rows:
+            for token in str(tokens or "").replace(",", " ").split():
+                token = token.upper()
+                if token.startswith(compact) and token[3:].isdigit():
+                    entry = found.setdefault(token, {"acn_code": token, "tx_count": 0, "total": 0})
+                    entry["tx_count"] += 1
+                    if direction == "inbound":
+                        entry["total"] += amount or 0
+        items = sorted(found.values(), key=lambda item: item["acn_code"])[:limit]
+        return {"kind": "acn", "items": items, "typed": raw}
 
     if compact.isdigit() and 9 <= len(compact) <= 11:
-        return {"kind": "blocked", "items": []}
+        return {"kind": "blocked", "items": [], "typed": raw}
 
     # A longer digit run (7-8, or 12+) is a candidate bank reference number.
     # provider_tx_id is not purely numeric (e.g. "YG26.000106" keeps the
@@ -901,9 +941,9 @@ def admin_suggest_payload(params: dict) -> dict:
                     (f"%{compact}%", limit),
                 ).fetchall()
             )
-        return {"kind": "reference", "items": rows}
+        return {"kind": "reference", "items": rows, "typed": raw}
 
-    return {"kind": "unknown", "items": []}
+    return {"kind": "unknown", "items": [], "typed": raw}
 
 
 API_ROUTES = {

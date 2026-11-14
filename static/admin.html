@@ -65,75 +65,75 @@
       <!-- Visual summary right after the headline numbers: these three charts
            are the fastest way to see the shape of the data before drilling
            into the action queue below. -->
-      <!-- Two independent columns, not a row grid: cards no longer stretch to the
-           height of their neighbour, so there are no empty gaps inside a card. -->
-      <div class="overview-cols">
-        <div class="col-main">
-          <section class="card">
-            <div class="card-head">
-              <h2>Luồng tiền</h2>
-              <p class="sub">Mỗi dòng là % trên tổng tiền vào/ra — số suy ra, xem footer.</p>
+      <div class="grid-2">
+        <section class="card">
+          <div class="card-head">
+            <h2>Luồng tiền</h2>
+            <p class="sub">Mỗi dòng là % trên tổng tiền vào/ra — số suy ra, xem footer.</p>
+          </div>
+          <div class="chart-layout">
+            <div class="chart-main">
+              <div id="flow-axis"></div>
+              <div id="flow-in" class="meter-group"></div>
+              <div id="flow-out" class="meter-group meter-group-tight"></div>
             </div>
-            <div class="chart-layout">
-              <div class="chart-main">
-                <div id="flow-axis"></div>
-                <div id="flow-in" class="meter-group"></div>
-                <div id="flow-out" class="meter-group meter-group-tight"></div>
-              </div>
-              <aside id="flow-conclusion" class="chart-conclusion"></aside>
+            <aside id="flow-conclusion" class="chart-conclusion"></aside>
+          </div>
+        </section>
+        <section class="card">
+          <div class="card-head">
+            <h2>Ngoại lệ đang mở, theo mức độ</h2>
+            <p class="sub">Từ <code>exception_queue</code>, xếp từ nghiêm trọng nhất.</p>
+          </div>
+          <div class="chart-layout">
+            <div class="chart-main">
+              <div id="severity-axis"></div>
+              <div id="severity" class="severity"></div>
             </div>
-          </section>
-          <section class="card">
-            <div class="card-head">
-              <h2>Giao dịch gần đây</h2>
-              <p class="sub">8 dòng mới nhất. Nội dung chuyển khoản thô không hiển thị.</p>
-            </div>
-            <div class="table-wrap">
-              <table class="data recent" id="recent-table">
-                <thead><tr>
-                  <th>Ngày</th><th>Mã giao dịch</th><th class="num">Số tiền</th><th>Mã tách được</th><th>Trạng thái</th>
-                </tr></thead>
-                <tbody id="recent-body"><tr><td colspan="5" class="muted">Đang tải…</td></tr></tbody>
-              </table>
-            </div>
-          </section>
-          <section class="card">
-            <div class="card-head">
-              <h2>Tình trạng hệ thống</h2>
-              <p class="sub">Dữ liệu có đang được nạp và ghi đúng không.</p>
-            </div>
-            <div id="status" class="status"></div>
-          </section>
-        </div>
-        <div class="col-side">
-          <section class="card">
-            <div class="card-head">
-              <h2>Cần xử lý</h2>
-              <p class="sub">Bấm một dòng để mở danh sách.</p>
-            </div>
-            <div id="queue-list" class="queue"></div>
-          </section>
-          <section class="card">
-            <div class="card-head">
-              <h2>Ngoại lệ đang mở, theo mức độ</h2>
-              <p class="sub">Từ <code>exception_queue</code>, xếp từ nghiêm trọng nhất.</p>
-            </div>
-            <div class="chart-layout stack">
-              <div class="chart-main">
-                <div id="severity-axis"></div>
-                <div id="severity" class="severity"></div>
-              </div>
-              <aside id="severity-conclusion" class="chart-conclusion"></aside>
-            </div>
-          </section>
-          <section class="card">
-            <div class="card-head">
-              <h2>Tiền vào chưa gán mã, theo năm</h2>
-              <p class="sub">Di chuột hoặc focus vào một cột để xem số chính xác.</p>
-            </div>
-            <div id="years" class="years-chart"></div>
-          </section>
-        </div>
+            <aside id="severity-conclusion" class="chart-conclusion"></aside>
+          </div>
+        </section>
+      </div>
+
+      <div class="grid-2">
+        <section class="card">
+          <div class="card-head">
+            <h2>Cần xử lý</h2>
+            <p class="sub">Bấm một dòng để mở danh sách.</p>
+          </div>
+          <div id="queue-list" class="queue"></div>
+        </section>
+        <section class="card">
+          <div class="card-head">
+            <h2>Tiền vào chưa gán mã, theo năm</h2>
+            <p class="sub">Di chuột hoặc focus vào một cột để xem số chính xác.</p>
+          </div>
+          <div id="years" class="years-chart"></div>
+        </section>
+      </div>
+
+      <div class="grid-2 grid-2-wide">
+        <section class="card">
+          <div class="card-head">
+            <h2>Giao dịch gần đây</h2>
+            <p class="sub">8 dòng mới nhất. Nội dung chuyển khoản thô không hiển thị.</p>
+          </div>
+          <div class="table-wrap">
+            <table class="data recent" id="recent-table">
+              <thead><tr>
+                <th>Ngày</th><th>Mã giao dịch</th><th class="num">Số tiền</th><th>Mã tách được</th><th>Trạng thái</th>
+              </tr></thead>
+              <tbody id="recent-body"><tr><td colspan="5" class="muted">Đang tải…</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="card">
+          <div class="card-head">
+            <h2>Tình trạng hệ thống</h2>
+            <p class="sub">Dữ liệu có đang được nạp và ghi đúng không.</p>
+          </div>
+          <div id="status" class="status"></div>
+        </section>
       </div>
     </section>
 

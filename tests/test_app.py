@@ -668,6 +668,34 @@ class ApiSecurityTests(unittest.TestCase):
         _, payload, _ = self.get("/api/admin/search?q=ne1s")
         self.assertEqual(payload["code"], "NE00001S")
 
+    def test_suggest_with_only_ne_offers_starting_points(self):
+        """Typing just "NE" must not leave the box empty: the officer has not
+        typed a number yet, so offer the codes carrying the most money."""
+        _, payload, _ = self.get("/api/admin/suggest?q=NE")
+        self.assertEqual(payload["kind"], "ne")
+        self.assertGreater(len(payload["items"]), 0)
+        self.assertTrue(payload.get("label"))
+        totals = [item["total"] for item in payload["items"]]
+        self.assertEqual(totals, sorted(totals, reverse=True))
+
+    def test_suggest_acn_reads_codes_from_reference_tokens(self):
+        _, payload, _ = self.get("/api/admin/suggest?q=ACN")
+        self.assertEqual(payload["kind"], "acn")
+        for item in payload["items"]:
+            self.assertTrue(item["acn_code"].startswith("ACN"))
+            self.assertGreaterEqual(item["tx_count"], 1)
+
+    def test_suggest_unknown_text_returns_no_items_but_keeps_the_typed_text(self):
+        _, payload, _ = self.get("/api/admin/suggest?q=abc")
+        self.assertEqual(payload["kind"], "unknown")
+        self.assertEqual(payload["items"], [])
+        self.assertEqual(payload["typed"], "abc")
+
+    def test_suggest_never_offers_phone_numbers(self):
+        _, payload, _ = self.get("/api/admin/suggest?q=0912345678")
+        self.assertEqual(payload["kind"], "blocked")
+        self.assertEqual(payload["items"], [])
+
     def test_admin_search_refuses_phone_numbers(self):
         """A phone number is not a lookup key, and pretending otherwise would
         turn the box into a personal-data oracle over raw bank memos."""
