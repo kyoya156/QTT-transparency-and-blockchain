@@ -1,4 +1,4 @@
-"""Test suite for the Nuôi Em Topic 4 pipeline.
+"""Test suite for the Quỹ Minh Bạch Tài Chính Topic 4 pipeline.
 
 Tests fall into three groups:
 

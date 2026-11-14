@@ -1,4 +1,4 @@
-"""Header-driven ingestion for Nuôi Em data.
+"""Header-driven ingestion for Quỹ Minh Bạch Tài Chính data.
 
 The previous version read fixed cell coordinates (`ws.cell(row, 15)`,
 `range(4, 14)`, ...). That is the single most dangerous pattern in a financial
@@ -693,7 +693,7 @@ if __name__ == "__main__":
     import argparse
     import json
 
-    parser = argparse.ArgumentParser(description="Build the Nuôi Em Topic 4 database.")
+    parser = argparse.ArgumentParser(description="Build the Quỹ Minh Bạch Tài Chính Topic 4 database.")
     parser.add_argument("source", type=Path)
     parser.add_argument("--database", type=Path, default=Path("data/nuoi_em_mvp.sqlite"))
     parser.add_argument("--mode", choices=["auto", "statement", "mentor"], default="auto")

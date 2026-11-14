@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 300" width="520" height="300" role="img" aria-hidden="true">
+  <defs>
+    <linearGradient id="heroBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eef4fb"/>
+      <stop offset="100%" stop-color="#e2ecf7"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="520" height="300" fill="url(#heroBg)"/>
+
+  <!-- ledger card -->
+  <rect x="48" y="44" width="300" height="212" rx="14" fill="#ffffff" stroke="#dde3ea" stroke-width="1.5"/>
+  <rect x="72" y="72" width="140" height="10" rx="5" fill="#c3cdd9"/>
+  <rect x="72" y="72" width="70" height="10" rx="5" fill="#1f5fa8"/>
+
+  <!-- statement rows -->
+  <g fill="#e9eef4">
+    <rect x="72" y="104" width="252" height="26" rx="6"/>
+    <rect x="72" y="140" width="252" height="26" rx="6" fill="#eaf3ee"/>
+    <rect x="72" y="176" width="252" height="26" rx="6"/>
+    <rect x="72" y="212" width="252" height="26" rx="6"/>
+  </g>
+  <g fill="#b7c2cd" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" font-size="11">
+    <rect x="84" y="113" width="86" height="8" rx="4" fill="#c3cdd9"/>
+    <rect x="84" y="149" width="86" height="8" rx="4" fill="#157a4a" fill-opacity=".55"/>
+    <rect x="84" y="185" width="86" height="8" rx="4" fill="#c3cdd9"/>
+    <rect x="84" y="221" width="86" height="8" rx="4" fill="#c3cdd9"/>
+  </g>
+  <!-- the one matched row gets a code tag -->
+  <rect x="236" y="145" width="72" height="16" rx="8" fill="#166a43"/>
+  <rect x="246" y="150" width="52" height="6" rx="3" fill="#ffffff" fill-opacity=".9"/>
+
+  <!-- trace line from matched row out to the check badge -->
+  <path d="M324 153 C 372 153, 372 220, 408 220" fill="none" stroke="#1f5fa8" stroke-width="2.5" stroke-dasharray="2 7" stroke-linecap="round"/>
+
+  <!-- verified badge -->
+  <circle cx="432" cy="220" r="34" fill="#ffffff" stroke="#dde3ea" stroke-width="1.5"/>
+  <circle cx="432" cy="220" r="24" fill="#1f5fa8"/>
+  <path d="M421 220 l7 7 l14 -16" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- small ascending bars, echoing the logo mark -->
+  <g fill="#1f5fa8">
+    <rect x="400" y="70" width="10" height="26" rx="3" fill-opacity=".55"/>
+    <rect x="416" y="54" width="10" height="42" rx="3" fill-opacity=".75"/>
+    <rect x="432" y="38" width="10" height="58" rx="3"/>
+  </g>
+</svg>

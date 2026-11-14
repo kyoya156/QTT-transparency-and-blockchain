@@ -1,4 +1,4 @@
-/* Nuôi Em · Topic 4 dashboard
+/* Quỹ Minh Bạch Tài Chính · Topic 4 dashboard
  *
  * Mobile-first. The fund's own problem statement is explicit about why:
  * "Ưu tiên mobile-first vì hành trình người dùng thường đi từ fanpage/Facebook
@@ -15,20 +15,22 @@
 :root {
   color-scheme: light;
 
-  --bg: #fff8ef;
+  /* Same cool neutral + blue-brand palette as admin.css, deliberately
+   * generic rather than tied to any one fund's own colors. */
+  --bg: #f5f7fa;
   --surface: #ffffff;
-  --surface-2: #fff3df;
-  --border: #f0dcc2;
-  --text: #34261c;
-  --muted: #756354;
-  --accent: #df6a2e;
-  --accent-soft: #fff0df;
-  --warn: #a35b12;
-  --warn-soft: #fff4d9;
+  --surface-2: #eef2f7;
+  --border: #dde3ea;
+  --text: #1b2430;
+  --muted: #5c6b7a;
+  --accent: #1f5fa8;
+  --accent-soft: #e6eefa;
+  --warn: #8a5a12;
+  --warn-soft: #fbf0db;
   --danger: #b3261e;
   --danger-soft: #fdecea;
-  --money: #16754a;
-  --shadow: 0 1px 2px rgba(87, 55, 30, .06), 0 8px 24px rgba(119, 71, 30, .08);
+  --money: #166a43;
+  --shadow: 0 1px 2px rgba(27, 36, 48, .06), 0 8px 24px rgba(27, 36, 48, .08);
 
   --radius: 14px;
   --gap: 14px;
@@ -112,7 +114,7 @@ h2 { font-size: 16px; margin: 0; letter-spacing: -.01em; }
 .banner strong { display: block; margin-bottom: 2px; }
 
 .hero {
-  background: linear-gradient(135deg, #fff 0%, #fff5e7 100%);
+  background: linear-gradient(135deg, #fff 0%, #eaf1f9 100%);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -332,7 +334,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 }
 .bar-fill {
   display: block; height: 100%; width: 0;
-  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 60%, #7cc4a3));
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 55%, var(--money)));
   transition: width .5s ease;
 }
 

@@ -1,4 +1,4 @@
-/* Nuôi Em · Topic 4 dashboard front-end
+/* Quỹ Minh Bạch Tài Chính · Topic 4 dashboard front-end
  *
  * Plain ES2020, no build step. The fund's problem statement asks for
  * "Excel-compatible first" and a system they can actually run, so the whole

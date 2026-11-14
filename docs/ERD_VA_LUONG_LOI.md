@@ -1,4 +1,4 @@
-# ERD & Luồng lỗi — Nuôi Em (Topic 4)
+# ERD & Luồng lỗi — Quỹ Minh Bạch Tài Chính (Topic 4)
 
 Tài liệu nội bộ. Nguồn: `PRAGMA foreign_key_list` trên `data/nuoi_em_mvp.sqlite`  
 và code `build_database.py` / `reconciliation.py` / `parsers.py`.

@@ -1,4 +1,4 @@
-"""Read-only HTTP API + static server for the Nuôi Em Topic 4 dashboard.
+"""Read-only HTTP API + static server for the Quỹ Minh Bạch Tài Chính Topic 4 dashboard.
 
 Changes from the first prototype, and why:
 
@@ -819,11 +819,91 @@ def admin_search_payload(params: dict) -> dict:
     if compact.isdigit():
         return {"kind": "reference", "code": compact, "input": raw}
 
+    # A letters+digits mix that is not an NE/ACN code (e.g. "YG26.000106",
+    # "VNCK989657") is the bank's own document number, typed with or without
+    # its dot. Same "go use the public board" answer as a bare-digit
+    # reference -- picking a /api/admin/suggest reference suggestion (which
+    # carries the dot) must land here too, not on the generic "unknown" hint.
+    if compact.isalnum() and not compact.isalpha():
+        return {"kind": "reference", "code": compact, "input": raw}
+
     return {
         "kind": "unknown",
         "input": raw,
         "hint": "Chưa hỗ trợ tra cứu theo tên trường hoặc tỉnh vì danh mục trường đang trống.",
     }
+
+
+def admin_suggest_payload(params: dict) -> dict:
+    """A handful of real candidates while the box is still being typed into.
+
+    This is typeahead, not search: it tolerates an incomplete token (a code
+    half-typed from memory) instead of requiring the finished shape
+    `admin_search_payload` needs. Detection mirrors that function's kind
+    precedence so a suggestion never contradicts what Enter would do.
+    """
+    raw = clean_query(params).strip()
+    if not raw:
+        return {"kind": "empty", "items": []}
+
+    compact = raw.replace(" ", "").replace(".", "").upper()
+    limit = 8
+
+    if compact.startswith("NE") or (compact.isdigit() and len(compact) <= 6):
+        digits = compact[2:] if compact.startswith("NE") else compact
+        if digits and digits[-1] in {"S", "T"}:
+            digits = digits[:-1]
+        if digits.isdigit() and digits != "":
+            with closing(database_connection()) as conn:
+                rows = rows_to_dicts(
+                    conn.execute(
+                        """
+                        SELECT ne_code,
+                               COUNT(*) AS allocation_count,
+                               COALESCE(SUM(allocated_amount_computed), 0) AS total
+                        FROM transaction_allocations
+                        WHERE CAST(ne_number AS TEXT) LIKE ?
+                        GROUP BY ne_code
+                        ORDER BY ne_number, ne_code
+                        LIMIT ?
+                        """,
+                        (f"{digits}%", limit),
+                    ).fetchall()
+                )
+            return {"kind": "ne", "items": rows}
+        return {"kind": "ne", "items": []}
+
+    if compact.startswith("ACN"):
+        return {"kind": "acn", "items": [], "hint": "Danh mục nhà tài trợ đang trống."}
+
+    if compact.isdigit() and 9 <= len(compact) <= 11:
+        return {"kind": "blocked", "items": []}
+
+    # A longer digit run (7-8, or 12+) is a candidate bank reference number.
+    # provider_tx_id is not purely numeric (e.g. "YG26.000106" keeps the
+    # bank's own dot, "AUTO-real_vcb.csv-156659" is a fallback id with
+    # dashes/dots of its own), so the typed digits are matched against a
+    # punctuation-stripped copy of provider_tx_id rather than the literal
+    # column -- a visitor who skips the dot while typing ("26000106") must
+    # still find "YG26.000106".
+    if compact.isdigit():
+        with closing(database_connection()) as conn:
+            rows = rows_to_dicts(
+                conn.execute(
+                    """
+                    SELECT provider_tx_id, tx_time, direction, amount
+                    FROM bank_transactions
+                    WHERE REPLACE(REPLACE(REPLACE(provider_tx_id, '.', ''), '-', ''), ' ', '')
+                          LIKE ?
+                    ORDER BY tx_time DESC
+                    LIMIT ?
+                    """,
+                    (f"%{compact}%", limit),
+                ).fetchall()
+            )
+        return {"kind": "reference", "items": rows}
+
+    return {"kind": "unknown", "items": []}
 
 
 API_ROUTES = {
@@ -839,6 +919,7 @@ API_ROUTES = {
     "/api/admin/queue": admin_queue_payload,
     "/api/admin/rows": admin_rows_payload,
     "/api/admin/search": admin_search_payload,
+    "/api/admin/suggest": admin_suggest_payload,
 }
 
 # Extension-less routes that map to a real file. Without this the fallback
@@ -850,7 +931,7 @@ PAGE_ROUTES = {
 
 
 class RequestHandler(BaseHTTPRequestHandler):
-    server_version = "NuoiEmTopic4/2.0"
+    server_version = "QuyMinhBachTaiChinh/2.0"
 
     def _security_headers(self) -> None:
         self.send_header("X-Content-Type-Options", "nosniff")
@@ -996,7 +1077,7 @@ def preflight() -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Nuôi Em Topic 4 local MVP")
+    parser = argparse.ArgumentParser(description="Quỹ Minh Bạch Tài Chính Topic 4 local MVP")
     parser.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8765")))
     parser.add_argument("--open", action="store_true")

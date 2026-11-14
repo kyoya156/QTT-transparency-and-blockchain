@@ -1,4 +1,4 @@
-/* Nuôi Em · admin dashboard
+/* Quỹ Minh Bạch Tài Chính · admin dashboard
  *
  * No inline handlers and no inline styles: the server sends
  * `script-src 'self'; style-src 'self'`, so every listener is attached here and
@@ -24,7 +24,37 @@
     cursor: null,
     total: 0,
     hasMore: false,
-    loading: false
+    loading: false,
+    // Sort/filter apply to the rows already loaded into the browser, not the
+    // full bucket on the server — the keyset pagination exists specifically
+    // because a bucket can be hundreds of thousands of rows, so "sort
+    // everything" would mean fetching everything first.
+    sortKey: null,
+    sortDir: 1,
+    filterText: {}
+  };
+
+  // One column config per queue "shape" (codes vs raw transactions), reused
+  // by the header (sort buttons + filter inputs) and the body (cell values).
+  var QUEUE_COLUMNS = {
+    codes: [
+      { key: "ne_code", label: "Mã NE", numeric: false, cls: "mono",
+        format: function (r) { return r.ne_code; } },
+      { key: "rows", label: "Số dòng", numeric: true, cls: "num",
+        format: function (r) { return num(r.rows); } },
+      { key: "total", label: "Tổng đã nhận", numeric: true, cls: "num",
+        format: function (r) { return money(r.total); } }
+    ],
+    tx: [
+      { key: "tx_time", label: "Ngày", numeric: false, cls: "mono",
+        format: function (r) { return date(r.tx_time); } },
+      { key: "amount", label: "Số tiền", numeric: true, cls: "num",
+        format: function (r) { return money(r.amount); } },
+      { key: "provider_tx_id", label: "Mã giao dịch", numeric: false, cls: "mono muted",
+        format: function (r) { return r.provider_tx_id; } },
+      { key: "processing_status", label: "Trạng thái", numeric: false, cls: "",
+        format: function (r) { return label(STATUS_LABEL, r.processing_status); } }
+    ]
   };
 
   var BUCKET_ORDER = ["inbound_no_code", "code_no_profile", "outbound_unclassified"];
@@ -184,6 +214,16 @@
       "</div>";
   }
 
+  // Shared percentage scale (0/25/50/75/100%) over the full track width, so
+  // a meter bar's length reads against a fixed ruler instead of only its own
+  // printed number.
+  function pctAxisHtml() {
+    return '<div class="chart-axis">' +
+      [0, 25, 50, 75, 100].map(function (tick) {
+        return "<span>" + tick + "%</span>";
+      }).join("") + "</div>";
+  }
+
   function renderFlow() {
     var byKey = {};
     (state.queue.buckets || []).forEach(function (bucket) { byKey[bucket.key] = bucket; });
@@ -202,6 +242,8 @@
     var outboundTotal = outbound.total || 0;
     var classifiedAmount = Math.max(0, outboundTotal - unclassifiedAmount);
 
+    el("flow-axis").innerHTML = pctAxisHtml();
+
     el("flow-in").innerHTML =
       '<p class="meter-note heading">Tiền vào · tổng ' + esc(compact(inboundTotal)) + "</p>" +
       meterRow("Đã gán mã NE", allocatedTotal, inboundTotal) +
@@ -210,6 +252,16 @@
     el("flow-out").innerHTML =
       '<p class="meter-note heading">Tiền ra · tổng ' + esc(compact(outboundTotal)) + "</p>" +
       meterRow("Đã phân loại kế toán", classifiedAmount, outboundTotal);
+
+    var pctAllocated = inboundTotal > 0 ? pct((allocatedTotal / inboundTotal) * 100) : "—";
+    var pctProfile = inboundTotal > 0 ? pct((hasProfileAmount / inboundTotal) * 100) : "—";
+    var pctOut = outboundTotal > 0 ? pct((classifiedAmount / outboundTotal) * 100) : "—";
+    el("flow-conclusion").innerHTML =
+      "<p><strong>" + esc(pctAllocated) + "</strong> tiền vào đã gán được mã NE, nhưng chỉ " +
+      "<strong>" + esc(pctProfile) + "</strong> có hồ sơ học sinh đi kèm — phần chênh lệch là " +
+      "mã có tiền mà chưa biết của em nào.</p>" +
+      "<p>Tiền ra mới phân loại kế toán được <strong>" + esc(pctOut) +
+      "</strong>; phần còn lại vẫn đang chờ chứng từ.</p>";
   }
 
   function renderSeverity() {
@@ -219,6 +271,10 @@
     var max = SEVERITY_ORDER.reduce(function (best, key) {
       return Math.max(best, byKey[key] || 0);
     }, 1);
+    var total = SEVERITY_ORDER.reduce(function (sum, key) { return sum + (byKey[key] || 0); }, 0);
+
+    el("severity-axis").innerHTML = '<div class="chart-axis chart-axis-severity">' +
+      "<span></span><span>0</span><span>" + esc(num(max)) + "</span></div>";
 
     el("severity").innerHTML = SEVERITY_ORDER.map(function (key) {
       var count = byKey[key] || 0;
@@ -228,6 +284,15 @@
           widthStep(count, max) + '"></span></span>' +
         '<span class="n">' + esc(num(count)) + "</span></div>";
     }).join("");
+
+    var highCount = byKey.high || 0;
+    el("severity-conclusion").innerHTML = total
+      ? "<p><strong>" + esc(num(total)) + "</strong> ngoại lệ đang mở" +
+        (highCount
+          ? ", trong đó <strong>" + esc(num(highCount)) + "</strong> ở mức nghiêm trọng — " +
+            "nên xử lý nhóm này trước."
+          : "; không có mục nào ở mức nghiêm trọng ngay lúc này.") + "</p>"
+      : "<p>Không có ngoại lệ nào đang mở.</p>";
   }
 
   function renderStatus() {
@@ -425,6 +490,12 @@
       state.year = year || "";
       state.rows = [];
       state.cursor = null;
+      // A sort/filter from the previous bucket means nothing in this one —
+      // different bucket, different columns, often a different shape (codes
+      // vs raw transactions).
+      state.sortKey = null;
+      state.sortDir = 1;
+      state.filterText = {};
     }
     el("bucket-select").value = state.bucket;
     el("year-select").value = state.year;
@@ -453,42 +524,201 @@
       .then(function () { el("more-btn").disabled = false; });
   }
 
+  function queueColumns(isCodes) {
+    return QUEUE_COLUMNS[isCodes ? "codes" : "tx"];
+  }
+
+  // Sort and filter both act on state.rows — the rows already loaded into
+  // the browser — never on a fresh server query. See the note on state above.
+  function visibleQueueRows(cols) {
+    var rows = state.rows.filter(function (row) {
+      return cols.every(function (col) {
+        var needle = (state.filterText[col.key] || "").trim().toLowerCase();
+        if (!needle) return true;
+        var hay = col.format(row);
+        hay = hay === null || hay === undefined ? "" : String(hay);
+        return hay.toLowerCase().indexOf(needle) !== -1;
+      });
+    });
+    if (state.sortKey) {
+      var dir = state.sortDir;
+      var col = cols.filter(function (c) { return c.key === state.sortKey; })[0];
+      rows = rows.slice().sort(function (a, b) {
+        var av = a[state.sortKey];
+        var bv = b[state.sortKey];
+        if (col && col.numeric) {
+          av = av === null || av === undefined ? -Infinity : Number(av);
+          bv = bv === null || bv === undefined ? -Infinity : Number(bv);
+          return (av - bv) * dir;
+        }
+        av = av === null || av === undefined ? "" : String(av);
+        bv = bv === null || bv === undefined ? "" : String(bv);
+        return av.localeCompare(bv, "vi") * dir;
+      });
+    }
+    return rows;
+  }
+
+  function paintQueueHead(isCodes) {
+    var cols = queueColumns(isCodes);
+    var sortRow = cols.map(function (col) {
+      var arrow = state.sortKey === col.key ? (state.sortDir === 1 ? " ▲" : " ▼") : "";
+      return '<th class="' + (col.numeric ? "num " : "") + 'sortable" data-field="' + col.key + '">' +
+        '<button type="button" class="col-sort" data-field="' + col.key + '">' +
+        esc(col.label) + arrow + "</button></th>";
+    }).join("") + (isCodes ? "<th></th>" : "");
+    var filterRow = cols.map(function (col) {
+      return '<th><input type="text" class="col-filter" data-field="' + col.key + '" ' +
+        'value="' + esc(state.filterText[col.key] || "") + '" placeholder="Lọc…" ' +
+        'aria-label="Lọc theo ' + esc(col.label) + '" /></th>';
+    }).join("") + (isCodes ? "<th></th>" : "");
+    el("queue-head").innerHTML =
+      "<tr>" + sortRow + "</tr><tr class=\"filter-row\">" + filterRow + "</tr>";
+  }
+
+  function paintQueueBody(isCodes) {
+    var cols = queueColumns(isCodes);
+    var rows = visibleQueueRows(cols);
+
+    el("queue-body").innerHTML = rows.length
+      ? rows.map(function (row) {
+          var cells = cols.map(function (col) {
+            return '<td class="' + col.cls + '">' + esc(col.format(row)) + "</td>";
+          }).join("");
+          if (isCodes) {
+            return '<tr class="clickable" data-code="' + esc(row.ne_code) + '">' +
+              cells + '<td class="muted">xem →</td></tr>';
+          }
+          // A transaction row is deliberately not clickable. There is no write
+          // API and no code-issuing table, so the only thing a click could
+          // reveal is that nothing can be done — worse than no affordance.
+          return "<tr>" + cells + "</tr>";
+        }).join("")
+      : '<tr><td colspan="' + (cols.length + (isCodes ? 1 : 0)) +
+        '" class="muted">Không có dòng khớp bộ lọc trong số đã tải.</td></tr>';
+
+    var filterActive = rows.length !== state.rows.length;
+    // Count only. The sentence explaining the bucket now lives in the page
+    // header, and printing it twice made the two lines look like a duplicate.
+    el("queue-count").textContent = num(state.total) + " dòng";
+    el("queue-range").textContent = !state.rows.length
+      ? "Không có dòng nào."
+      : filterActive
+        ? "Lọc còn " + num(rows.length) + " / " + num(state.rows.length) + " dòng đã tải (tổng " + num(state.total) + ")"
+        : "Hiển thị " + num(state.rows.length) + " / " + num(state.total);
+    el("more-btn").hidden = !state.hasMore;
+  }
+
   function paintQueue() {
     var isCodes = state.kind === "codes";
     // Tagged so the stylesheet can drop the column that carries no information
     // at phone width instead of making the table scroll sideways.
     el("queue-table").dataset.mode = isCodes ? "codes" : "tx";
+    paintQueueHead(isCodes);
+    paintQueueBody(isCodes);
+  }
 
-    el("queue-head").innerHTML = isCodes
-      ? "<tr><th>Mã NE</th><th class=\"num\">Số dòng</th><th class=\"num\">Tổng đã nhận</th><th></th></tr>"
-      : "<tr><th>Ngày</th><th class=\"num\">Số tiền</th><th>Mã giao dịch</th><th>Trạng thái</th></tr>";
+  // -------------------------------------------------------------- suggest
+  /* Typeahead under the global search box: a few real candidates while the
+   * officer is still typing a half-remembered code, backed by
+   * /api/admin/suggest. This never replaces Enter / doSearch — it only
+   * offers a shortcut past it. Kinds mirror admin_search_payload's, but
+   * "acn" / "blocked" / "unknown" / "empty" show a quiet hint, not a list. */
 
-    el("queue-body").innerHTML = state.rows.map(function (row) {
-      if (isCodes) {
-        return '<tr class="clickable" data-code="' + esc(row.ne_code) + '">' +
-          '<td class="mono">' + esc(row.ne_code) + "</td>" +
-          '<td class="num">' + esc(num(row.rows)) + "</td>" +
-          '<td class="num">' + esc(money(row.total)) + "</td>" +
-          '<td class="muted">xem →</td></tr>';
-      }
-      // A transaction row is deliberately not clickable. There is no write API
-      // and no code-issuing table, so the only thing a click could reveal is
-      // that nothing can be done — which is worse than no affordance at all.
-      return "<tr>" +
-        '<td class="mono">' + esc(date(row.tx_time)) + "</td>" +
-        '<td class="num">' + esc(money(row.amount)) + "</td>" +
-        '<td class="mono muted">' + esc(row.provider_tx_id) + "</td>" +
-        "<td>" + esc(label(STATUS_LABEL, row.processing_status)) + "</td></tr>";
-    }).join("");
+  var suggestState = { codes: [], activeIndex: -1, requestToken: 0 };
+  var suggestTimer = null;
 
-    var shown = state.rows.length;
-    // Count only. The sentence explaining the bucket now lives in the page
-    // header, and printing it twice made the two lines look like a duplicate.
-    el("queue-count").textContent = num(state.total) + " dòng";
-    el("queue-range").textContent = shown
-      ? "Hiển thị " + num(shown) + " / " + num(state.total)
-      : "Không có dòng nào.";
-    el("more-btn").hidden = !state.hasMore;
+  var SUGGEST_HINT = {
+    acn: "Danh mục nhà tài trợ đang trống — chưa gợi ý được theo mã ACN.",
+    blocked: "Không tra cứu bằng số điện thoại."
+  };
+
+  function closeSuggest() {
+    var list = el("search-suggest");
+    list.hidden = true;
+    list.innerHTML = "";
+    suggestState.codes = [];
+    suggestState.activeIndex = -1;
+    el("q").setAttribute("aria-expanded", "false");
+    el("q").removeAttribute("aria-activedescendant");
+  }
+
+  function suggestItemHtml(kind, item, index) {
+    if (kind === "ne") {
+      return '<li class="suggest-item" id="sg-' + index + '" role="option">' +
+        '<span class="code">' + esc(item.ne_code) + "</span>" +
+        '<span class="detail">' + esc(num(item.allocation_count)) + " dòng · " +
+          esc(compact(item.total)) + "</span></li>";
+    }
+    return '<li class="suggest-item" id="sg-' + index + '" role="option">' +
+      '<span class="code">' + esc(item.provider_tx_id) + "</span>" +
+      '<span class="detail">' + (item.direction === "inbound" ? "vào" : "ra") + " · " +
+        esc(compact(item.amount)) + " · " + esc(date(item.tx_time)) + "</span></li>";
+  }
+
+  function renderSuggest(payload) {
+    var list = el("search-suggest");
+    var items = payload.items || [];
+
+    if ((payload.kind === "ne" || payload.kind === "reference") && items.length) {
+      suggestState.codes = items.map(function (item) {
+        return payload.kind === "ne" ? item.ne_code : item.provider_tx_id;
+      });
+      list.innerHTML = items.map(function (item, index) {
+        return suggestItemHtml(payload.kind, item, index);
+      }).join("");
+      list.hidden = false;
+      el("q").setAttribute("aria-expanded", "true");
+      return;
+    }
+
+    var hint = SUGGEST_HINT[payload.kind];
+    if (hint) {
+      suggestState.codes = [];
+      list.innerHTML = '<li class="suggest-hint">' + esc(hint) + "</li>";
+      list.hidden = false;
+      el("q").setAttribute("aria-expanded", "true");
+      return;
+    }
+
+    closeSuggest();
+  }
+
+  function moveSuggestActive(delta) {
+    var options = el("search-suggest").querySelectorAll(".suggest-item");
+    if (!options.length) return;
+    suggestState.activeIndex = (suggestState.activeIndex + delta + options.length) % options.length;
+    Array.prototype.forEach.call(options, function (option, index) {
+      option.classList.toggle("active", index === suggestState.activeIndex);
+    });
+    var active = options[suggestState.activeIndex];
+    active.scrollIntoView({ block: "nearest" });
+    el("q").setAttribute("aria-activedescendant", active.id);
+  }
+
+  // true when it handled Enter (an item was highlighted), so the caller can
+  // preventDefault instead of falling through to the plain-text submit.
+  function pickSuggestActive() {
+    if (suggestState.activeIndex < 0) return false;
+    var code = suggestState.codes[suggestState.activeIndex];
+    if (code === undefined) return false;
+    closeSuggest();
+    location.hash = "#/lookup?q=" + encodeURIComponent(code);
+    return true;
+  }
+
+  function scheduleSuggest(value) {
+    clearTimeout(suggestTimer);
+    if (!value.trim()) { closeSuggest(); return; }
+    suggestTimer = setTimeout(function () {
+      var token = ++suggestState.requestToken;
+      getJSON("/api/admin/suggest?q=" + encodeURIComponent(value))
+        .then(function (payload) {
+          if (token !== suggestState.requestToken) return; // a newer keystroke already answered
+          renderSuggest(payload);
+        })
+        .catch(function () { /* typeahead is best-effort; stay quiet on error */ });
+    }, 200);
   }
 
   // ---------------------------------------------------------------- lookup
@@ -634,6 +864,12 @@
     var current = parseHash();
     show(current.view);
 
+    // The global search always jumps to #/lookup, which is a surprising place
+    // to land when you were in the middle of working a queue bucket. Hide it
+    // there; every other view is a fine place to jump away from.
+    el("search-wrap").hidden = current.view === "queue";
+    closeSuggest();
+
     if (current.view === "queue") {
       var bucket = current.param || state.bucket || "inbound_no_code";
       el("page-title").textContent = bucketTitle(bucket);
@@ -681,9 +917,41 @@
   function boot() {
     el("search-form").addEventListener("submit", function (event) {
       event.preventDefault();
+      if (pickSuggestActive()) return; // Enter with a suggestion highlighted
+      closeSuggest();
       var value = el("q").value.trim();
       if (!value) return;
       location.hash = "#/lookup?q=" + encodeURIComponent(value);
+    });
+
+    el("q").addEventListener("input", function (event) {
+      suggestState.activeIndex = -1;
+      scheduleSuggest(event.target.value);
+    });
+
+    el("q").addEventListener("keydown", function (event) {
+      if (el("search-suggest").hidden) return;
+      if (event.key === "ArrowDown") { event.preventDefault(); moveSuggestActive(1); }
+      else if (event.key === "ArrowUp") { event.preventDefault(); moveSuggestActive(-1); }
+      else if (event.key === "Escape") { closeSuggest(); }
+    });
+
+    // mousedown (not click) + preventDefault so #q never blurs on the way to
+    // a selection — a blur would close the list before a click event on it
+    // ever fires.
+    el("search-suggest").addEventListener("mousedown", function (event) {
+      var item = event.target.closest(".suggest-item");
+      if (!item || !item.id) return;
+      var index = Number(item.id.slice(3));
+      var code = suggestState.codes[index];
+      if (code === undefined) return;
+      event.preventDefault();
+      closeSuggest();
+      location.hash = "#/lookup?q=" + encodeURIComponent(code);
+    });
+
+    el("q").addEventListener("blur", function () {
+      setTimeout(closeSuggest, 150);
     });
 
     el("queue-list").addEventListener("click", function (event) {
@@ -711,6 +979,26 @@
 
     el("more-btn").addEventListener("click", function () {
       renderQueueRoute(state.bucket, state.year, true);
+    });
+
+    // Sort: click a header button, toggling asc/desc on repeat clicks of the
+    // same column. Rebuilds head (for the arrow) and body.
+    el("queue-head").addEventListener("click", function (event) {
+      var button = event.target.closest(".col-sort");
+      if (!button) return;
+      var field = button.dataset.field;
+      state.sortDir = state.sortKey === field ? -state.sortDir : 1;
+      state.sortKey = field;
+      paintQueue();
+    });
+
+    // Filter: typing into a column's box re-renders only the body, so the
+    // input itself is never replaced out from under the caret.
+    el("queue-head").addEventListener("input", function (event) {
+      var input = event.target.closest(".col-filter");
+      if (!input) return;
+      state.filterText[input.dataset.field] = input.value;
+      paintQueueBody(state.kind === "codes");
     });
 
     // Delegated so the chart can be rebuilt on every render without

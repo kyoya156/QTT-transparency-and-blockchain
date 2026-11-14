@@ -1,4 +1,4 @@
-"""Parsing rules for Nuôi Em transaction references.
+"""Parsing rules for Quỹ Minh Bạch Tài Chính transaction references.
 
 Every rule in this file is derived from real data, not assumption. The formats
 below were observed in the live statement published by the fund

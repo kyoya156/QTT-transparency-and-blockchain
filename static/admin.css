@@ -1,4 +1,4 @@
-/* Nuôi Em · admin dashboard
+/* Quỹ Minh Bạch Tài Chính · admin dashboard
  *
  * Conventional admin shell: fixed sidebar, page header with a global search,
  * cards, and real tables with filters and paging. The earlier version was one
@@ -12,26 +12,32 @@
 :root {
   color-scheme: light;
 
-  --bg: #fbf7f1;
+  /* Cool neutral + blue brand accent, chosen deliberately to read as a generic
+   * financial-transparency tool rather than any one fund's own colors — see
+   * the dataviz skill's validate_palette.js output kept in git history for
+   * this palette's categorical/contrast run (status colors ship with an
+   * icon + label here, never color alone, so a CVD-pairwise fail between
+   * --warn and --danger is the documented, acceptable case for status roles). */
+  --bg: #f5f7fa;
   --surface: #ffffff;
-  --surface-2: #fff6ea;
-  --border: #ecdfcd;
-  --border-strong: #ddc9ad;
-  --text: #32251b;
-  --muted: #77655a;
-  --accent: #d2601f;
-  --accent-soft: #fdeee1;
-  --warn: #96540f;
-  --warn-soft: #fdf1d8;
-  --danger: #ac2318;
-  --danger-soft: #fcebe9;
-  --money: #146b45;
-  --money-soft: #e6f4ed;
+  --surface-2: #eef2f7;
+  --border: #dde3ea;
+  --border-strong: #c3cdd9;
+  --text: #1b2430;
+  --muted: #5c6b7a;
+  --accent: #1f5fa8;
+  --accent-soft: #e6eefa;
+  --warn: #8a5a12;
+  --warn-soft: #fbf0db;
+  --danger: #b3261e;
+  --danger-soft: #fbebe9;
+  --money: #166a43;
+  --money-soft: #e3f3ea;
 
   /* Severity is ordinal (high -> info is a position, not an identity), so this
    * is one hue stepped by lightness, not four unrelated colors. Validated with
    * the dataviz skill's validate_palette.js --ordinal: monotone L, adjacent
-   * ΔL >= 0.06, light-end contrast 2.08:1 on --bg, single hue (spread 0°). */
+   * ΔL >= 0.06, light-end contrast 2.07:1 on the new --bg, single hue (spread 0°). */
   --sev-high: #8d0000;
   --sev-medium: #bb4538;
   --sev-low: #dd7769;
@@ -112,7 +118,7 @@ body {
 .nav a:hover { background: var(--surface-2); color: var(--text); }
 .nav a.active {
   background: var(--accent-soft);
-  border-color: #f2d3b8;
+  border-color: #bcd4ef;
   color: var(--accent);
 }
 
@@ -151,12 +157,69 @@ body {
   flex: 1; min-width: 0; border: 0; outline: 0; background: transparent;
   font: inherit; color: var(--text); padding: 7px 0;
 }
-.search input::placeholder { color: #b6a292; }
+.search input::placeholder { color: #8a97a6; }
 .search button {
   border: 0; background: var(--accent); color: #fff; font: inherit;
   font-weight: 600; border-radius: 7px; padding: 8px 16px; cursor: pointer;
 }
-.search button:hover { background: #b9501a; }
+.search button:hover { background: #184a84; }
+
+/* --------------------------------------------------------------- suggest */
+/* Typeahead dropdown under the global search box. Anchored by `.search-wrap`
+ * (position: relative) so the list sits over page content instead of pushing
+ * it down — it's transient, not part of the page flow. */
+
+.search-wrap { position: relative; }
+
+.suggest {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(27, 36, 48, .14);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.suggest-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.suggest-item .code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+.suggest-item .detail {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.suggest-item:hover,
+.suggest-item.active { background: var(--accent-soft); }
+.suggest-item.active .code { color: var(--accent); }
+
+.suggest-hint {
+  padding: 8px 10px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
 
 /* --------------------------------------------------------------- metrics */
 
@@ -261,6 +324,49 @@ body {
 .w-75{width:75%}.w-80{width:80%}.w-85{width:85%}.w-90{width:90%}.w-95{width:95%}
 .w-100{width:100%}
 
+/* ------------------------------------------------------------- chart layout */
+/* Chart + a short written takeaway beside it, so the card answers "what does
+ * this mean" without making the reader do that arithmetic themselves. Stacks
+ * on phones — a 180px side column has no room to be useful under ~820px. */
+
+.chart-layout { display: flex; flex-direction: column; gap: 14px; }
+.chart-main { min-width: 0; }
+.chart-conclusion {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 12.5px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.chart-conclusion p { margin: 0 0 6px; }
+.chart-conclusion p:last-child { margin-bottom: 0; }
+.chart-conclusion strong { color: var(--accent); }
+
+/* A plain percentage ruler over the full track width — the meter bars don't
+ * have their own axis, so without this their length only reads against the
+ * printed number, not a shared scale. */
+.chart-axis {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Severity bars are counts, not percentages, and sit in a 3-column grid
+ * (name | track | count) — so this axis matches that grid and only spans the
+ * middle (track) column, with 0 and the current max as its two ticks. */
+.chart-axis-severity {
+  display: grid;
+  grid-template-columns: 108px 1fr 42px;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+.chart-axis-severity span:nth-child(2) { display: flex; justify-content: space-between; }
+
 /* ------------------------------------------------------------------ meter */
 /* "Luồng tiền": a Meter list -- several ratios against the same whole (the
  * period's inbound or outbound total), one named row each, bars aligned. */
@@ -326,8 +432,8 @@ body {
 .chart-tooltip { opacity: 0; transition: opacity 0.1s ease; }
 .chart-tooltip.show { opacity: 1; }
 .chart-tooltip rect { fill: var(--text); }
-.chart-tooltip .tt-value { fill: #fff8f0; font-weight: 700; }
-.chart-tooltip .tt-sub { fill: #e7d8cb; }
+.chart-tooltip .tt-value { fill: #f5f8fc; font-weight: 700; }
+.chart-tooltip .tt-sub { fill: #c9d3de; }
 
 /* ---------------------------------------------------------------- toolbar */
 
@@ -385,6 +491,50 @@ table.data td {
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
+
+/* Sortable column headers: a full-width button so the whole header cell is
+ * the hit target, not just the text. */
+table.data th.sortable { padding: 0; }
+table.data .col-sort {
+  display: block;
+  width: 100%;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  padding: 8px 10px;
+  text-align: inherit;
+  cursor: pointer;
+}
+table.data .col-sort:hover { color: var(--text); background: var(--surface-2); }
+table.data th.num .col-sort { text-align: right; }
+
+/* Per-column filter row, directly under the sort header. */
+table.data tr.filter-row th {
+  padding: 4px 6px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-strong);
+}
+table.data .col-filter {
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 7px;
+}
+table.data .col-filter:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+table.data .col-filter::placeholder { color: #8a97a6; }
 
 table.data tbody tr:hover { background: var(--surface-2); }
 table.data tbody tr.clickable { cursor: pointer; }
@@ -473,7 +623,7 @@ table.data .muted { color: var(--muted); }
 .badge { border-radius: 999px; padding: 3px 10px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
 .badge.warn { background: var(--warn-soft); color: var(--warn); }
 .badge.ok { background: var(--money-soft); color: var(--money); }
-.badge.muted { background: #f0eae2; color: var(--muted); }
+.badge.muted { background: #e7ebf0; color: var(--muted); }
 .badge.risk { background: var(--danger-soft); color: var(--danger); }
 
 .result-body { display: grid; grid-template-columns: minmax(0, 1fr); }
@@ -495,7 +645,7 @@ table.data .muted { color: var(--muted); }
   padding: 11px;
   font-size: 12.5px;
   color: var(--muted);
-  background: #fffdfa;
+  background: #fbfcfe;
   line-height: 1.55;
 }
 .empty strong { color: var(--warn); }
@@ -586,4 +736,13 @@ code {
   .search { width: 340px; flex: none; }
 
   .grid-2 { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+}
+
+/* Below this, a card inside `.grid-2` isn't wide enough to also split
+ * chart-main/conclusion sideways without crushing both — so the conclusion
+ * stays a callout under the chart until there's genuinely room beside it. */
+@media (min-width: 1180px) {
+  .chart-layout { flex-direction: row; align-items: flex-start; }
+  .chart-main { flex: 1; }
+  .chart-conclusion { flex: none; width: 190px; }
 }

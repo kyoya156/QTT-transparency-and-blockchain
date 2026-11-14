@@ -1,4 +1,4 @@
-"""Database schema for the Nuôi Em Topic 4 financial transparency system.
+"""Database schema for the Quỹ Minh Bạch Tài Chính Topic 4 financial transparency system.
 
 Design decisions worth stating, because each one is traceable to evidence:
 

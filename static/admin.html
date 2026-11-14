@@ -4,9 +4,9 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="color-scheme" content="light" />
-<title>Nuôi Em · Quản trị đối soát</title>
-<meta name="description" content="Hàng đợi ngoại lệ, tra cứu mã NE và trạng thái toàn vẹn dữ liệu cho Quỹ Nuôi Em." />
-<link rel="icon" href="/assets/nuoi-em-logo.webp" />
+<title>Quỹ Minh Bạch Tài Chính · Quản trị đối soát</title>
+<meta name="description" content="Hàng đợi ngoại lệ, tra cứu mã NE và trạng thái toàn vẹn dữ liệu cho Quỹ Minh Bạch Tài Chính." />
+<link rel="icon" type="image/svg+xml" href="/assets/logo.svg" />
 <link rel="stylesheet" href="/admin.css" />
 </head>
 <body>
@@ -17,9 +17,9 @@
 
   <aside class="side">
     <div class="side-brand">
-      <img src="/assets/nuoi-em-logo.webp" alt="" width="30" height="30" />
+      <img src="/assets/logo.svg" alt="" width="30" height="30" />
       <div>
-        <strong>Nuôi Em</strong>
+        <strong>Minh Bạch Tài Chính</strong>
         <span>Quản trị</span>
       </div>
     </div>
@@ -43,18 +43,65 @@
         <h1 id="page-title">Tổng quan</h1>
         <p id="page-sub">Việc đang chờ xử lý và tình trạng dữ liệu.</p>
       </div>
-      <form id="search-form" class="search" role="search">
-        <label class="sr-only" for="q">Mã cần tra cứu</label>
-        <input id="q" name="q" type="search" inputmode="text" autocomplete="off"
-               spellcheck="false" maxlength="64"
-               placeholder="Mã NE, ACN hoặc số tham chiếu" />
-        <button type="submit">Tra</button>
-      </form>
+      <div class="search-wrap" id="search-wrap">
+        <form id="search-form" class="search" role="search">
+          <label class="sr-only" for="q">Mã cần tra cứu</label>
+          <input id="q" name="q" type="search" inputmode="text" autocomplete="off"
+                 spellcheck="false" maxlength="64"
+                 placeholder="Mã NE, ACN hoặc số tham chiếu"
+                 role="combobox" aria-expanded="false" aria-autocomplete="list"
+                 aria-controls="search-suggest" />
+          <button type="submit">Tra</button>
+        </form>
+        <ul id="search-suggest" class="suggest" role="listbox" hidden></ul>
+      </div>
     </header>
 
     <!-- ---------------------------------------------------------- overview -->
     <section id="view-overview" class="view">
       <div class="metrics" id="metrics"></div>
+
+      <!-- Visual summary right after the headline numbers: these three charts
+           are the fastest way to see the shape of the data before drilling
+           into the action queue below. -->
+      <div class="grid-2">
+        <section class="card">
+          <div class="card-head">
+            <h2>Luồng tiền</h2>
+            <p class="sub">Mỗi dòng là % trên tổng tiền vào/ra — số suy ra, xem footer.</p>
+          </div>
+          <div class="chart-layout">
+            <div class="chart-main">
+              <div id="flow-axis"></div>
+              <div id="flow-in" class="meter-group"></div>
+              <div id="flow-out" class="meter-group meter-group-tight"></div>
+            </div>
+            <aside id="flow-conclusion" class="chart-conclusion"></aside>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <h2>Ngoại lệ đang mở, theo mức độ</h2>
+            <p class="sub">Từ <code>exception_queue</code>, xếp từ nghiêm trọng nhất.</p>
+          </div>
+          <div class="chart-layout">
+            <div class="chart-main">
+              <div id="severity-axis"></div>
+              <div id="severity" class="severity"></div>
+            </div>
+            <aside id="severity-conclusion" class="chart-conclusion"></aside>
+          </div>
+        </section>
+      </div>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Tiền vào chưa gán mã, theo năm</h2>
+          <p class="sub">Di chuột hoặc focus vào một cột để xem số chính xác.</p>
+        </div>
+        <div id="years" class="years-chart"></div>
+      </section>
 
       <div class="grid-2">
         <section class="card">
@@ -73,33 +120,6 @@
           <div id="status" class="status"></div>
         </section>
       </div>
-
-      <div class="grid-2">
-        <section class="card">
-          <div class="card-head">
-            <h2>Luồng tiền</h2>
-            <p class="sub">Mỗi dòng là % trên tổng tiền vào/ra — số suy ra, xem footer.</p>
-          </div>
-          <div id="flow-in" class="meter-group"></div>
-          <div id="flow-out" class="meter-group meter-group-tight"></div>
-        </section>
-
-        <section class="card">
-          <div class="card-head">
-            <h2>Ngoại lệ đang mở, theo mức độ</h2>
-            <p class="sub">Từ <code>exception_queue</code>, xếp từ nghiêm trọng nhất.</p>
-          </div>
-          <div id="severity" class="severity"></div>
-        </section>
-      </div>
-
-      <section class="card">
-        <div class="card-head">
-          <h2>Tiền vào chưa gán mã, theo năm</h2>
-          <p class="sub">Di chuột hoặc focus vào một cột để xem số chính xác.</p>
-        </div>
-        <div id="years" class="years-chart"></div>
-      </section>
     </section>
 
     <!-- ------------------------------------------------------------- queue -->

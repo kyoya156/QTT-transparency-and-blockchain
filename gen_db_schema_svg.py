@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -I safe: no local imports besides stdlib.
-"""Generates static/assets/db-schema.svg for the Nuôi Em admin dashboard.
+"""Generates static/assets/db-schema.svg for the Quỹ Minh Bạch Tài Chính admin dashboard.
 
 Draws the 16-table schema (schema.py) as a grouped, colored box-and-line
 diagram: solid arrows are real foreign keys, dashed arrows are the business
@@ -23,12 +23,12 @@ import os
 # Matches static/admin.css :root. Four categorical hues for the four domain
 # groups, chosen to pass scripts/validate_palette.js (dataviz skill): all six
 # checks PASS at L 0.43-0.77 / C>=0.10 / CVD worst-adjacent dE 8.1 / normal-
-# vision floor 20.4 / contrast >=3:1 on this page's --bg (#fbf7f1).
-BG = "#fbf7f1"
+# vision floor 20.4 / contrast >=3:1 on this page's --bg (#f5f7fa).
+BG = "#f5f7fa"
 SURFACE = "#ffffff"
-TEXT = "#32251b"
-MUTED = "#77655a"
-BORDER = "#ecdfcd"
+TEXT = "#1b2430"
+MUTED = "#5c6b7a"
+BORDER = "#dde3ea"
 
 GROUPS = {
     "ref": {"label": "Dữ liệu tham chiếu", "hue": "#2a6fb0", "soft": "#e8eff8"},
@@ -230,7 +230,7 @@ parts.append(
     f'width="{CANVAS_W:.0f}" height="{CANVAS_H:.0f}" role="img" '
     f'aria-labelledby="schema-title schema-desc">'
 )
-parts.append(f'<title id="schema-title">Sơ đồ CSDL — luồng dữ liệu Nuôi Em (Topic 4)</title>')
+parts.append(f'<title id="schema-title">Sơ đồ CSDL — luồng dữ liệu Quỹ Minh Bạch Tài Chính (Topic 4)</title>')
 parts.append(
     '<desc id="schema-desc">16 bảng của SQLite, nhóm theo 4 vùng: dữ liệu tham '
     'chiếu, giao dịch ngân hàng, đối soát &amp; giải ngân, quản trị &amp; giám sát. '
@@ -255,7 +255,7 @@ parts.append('</defs>')
 # -------------------------------------------------------------- title + legend
 parts.append(
     f'<text x="{MARGIN_X}" y="30" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" '
-    f'font-size="19" font-weight="700" fill="{TEXT}">Sơ đồ CSDL — luồng dữ liệu hệ thống Nuôi Em</text>'
+    f'font-size="19" font-weight="700" fill="{TEXT}">Sơ đồ CSDL — luồng dữ liệu hệ thống Quỹ Minh Bạch Tài Chính</text>'
 )
 parts.append(
     f'<text x="{MARGIN_X}" y="50" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" '
