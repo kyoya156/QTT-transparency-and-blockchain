@@ -148,7 +148,7 @@ function renderCoverage(coverage) {
 
 function statusTag(status) {
   const map = {
-    matched: ['tag-ne', 'khớp mã'],
+    matched: ['tag-ok', 'khớp mã'],
     parsed: ['tag', 'đã tách'],
     needs_review: ['tag-inferred', 'cần rà soát'],
     unclassified: ['tag-inferred', 'chưa phân loại'],
@@ -316,6 +316,14 @@ async function showNeLookup(code) {
 
 /* ------------------------------------------------------------- secondary */
 
+const EXCEPTION_TITLE = {
+  INBOUND_WITHOUT_CODE: 'Tiền vào không gắn được mã',
+  UNCLASSIFIED_INBOUND: 'Tiền vào chưa phân loại',
+  NE_CODE_NOT_IN_REGISTRY: 'Mã NE chưa có trong danh mục',
+  ALLOCATION_SUM_MISMATCH: 'Tổng phân bổ lệch với giao dịch',
+  DUPLICATE_NE_ON_TRANSACTION: 'Một mã NE lặp lại trong cùng giao dịch',
+};
+
 async function loadExceptions() {
   try {
     const data = await getJSON(API.exceptions);
@@ -323,7 +331,7 @@ async function loadExceptions() {
     setPill($('exc-pill'), `${items.length} nhóm`, items.length ? 'pill-warn' : 'pill-ok');
     $('exceptions').innerHTML = items.length
       ? items.map((e) => `<div class="exc sev-${escapeHtml(e.severity)}">
-          <div class="exc-code">${escapeHtml(e.exception_code)}</div>
+          <div class="exc-code">${escapeHtml(EXCEPTION_TITLE[e.exception_code] || e.exception_code)}</div>
           <div class="exc-detail">${escapeHtml(e.detail)}</div>
         </div>`).join('')
       : '<p class="muted small">Không có ngoại lệ đang mở.</p>';

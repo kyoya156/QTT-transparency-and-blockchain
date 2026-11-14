@@ -23,12 +23,12 @@ import os
 # Matches static/admin.css :root. Four categorical hues for the four domain
 # groups, chosen to pass scripts/validate_palette.js (dataviz skill): all six
 # checks PASS at L 0.43-0.77 / C>=0.10 / CVD worst-adjacent dE 8.1 / normal-
-# vision floor 20.4 / contrast >=3:1 on this page's --bg (#f5f7fa).
-BG = "#f5f7fa"
+# vision floor 20.4 / contrast >=3:1 on this page's --bg (#f2f0ef).
+BG = "#f2f0ef"
 SURFACE = "#ffffff"
-TEXT = "#1b2430"
-MUTED = "#5c6b7a"
-BORDER = "#dde3ea"
+TEXT = "#211a1b"
+MUTED = "#655c5e"
+BORDER = "#ddd8d6"
 
 GROUPS = {
     "ref": {"label": "Dữ liệu tham chiếu", "hue": "#2a6fb0", "soft": "#e8eff8"},

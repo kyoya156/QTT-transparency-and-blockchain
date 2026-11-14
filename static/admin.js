@@ -124,7 +124,10 @@
     equal_split: "chia đều",
     equal_split_with_remainder: "chia đều, dư 1đ"
   };
-  var MATCH_LABEL = { ambiguous: "chưa xác định", matched: "đã khớp", unmatched: "chưa khớp" };
+  var MATCH_LABEL = {
+    ambiguous: "chưa xác định", matched: "đã khớp", unmatched: "chưa khớp",
+    ne_not_in_registry: "mã chưa có trong danh mục"
+  };
   var STATUS_LABEL = {
     needs_review: "chờ xem lại",
     parsed: "đã tách mã",
@@ -154,6 +157,31 @@
 
   // -------------------------------------------------------------- overview
 
+
+  // Latest bank rows, so the overview has something concrete under the
+  // summary numbers. Memo text never comes back from this API; only the parsed
+  // codes do (reference_tokens), which is what an officer scans for anyway.
+  function loadRecent() {
+    getJSON("/api/transactions?limit=8").then(function (payload) {
+      var rows = payload.items || [];
+      if (!rows.length) {
+        el("recent-body").innerHTML = '<tr><td colspan="5" class="muted">Chưa có giao dịch nào.</td></tr>';
+        return;
+      }
+      el("recent-body").innerHTML = rows.map(function (row) {
+        var out = row.direction === "outbound";
+        return "<tr>" +
+          '<td class="mono">' + esc(date(row.tx_time)) + "</td>" +
+          '<td class="mono">' + esc(row.provider_tx_id) + "</td>" +
+          '<td class="num ' + (out ? "out" : "in") + '">' + (out ? "−" : "+") + esc(money(row.amount)) + "</td>" +
+          '<td class="mono tokens">' + esc(row.reference_tokens || "—") + "</td>" +
+          "<td>" + esc(label(STATUS_LABEL, row.processing_status)) + "</td></tr>";
+      }).join("");
+    }).catch(function () {
+      el("recent-body").innerHTML = '<tr><td colspan="5" class="muted">Không tải được giao dịch gần đây.</td></tr>';
+    });
+  }
+
   function renderOverview() {
     var byKey = {};
     (state.queue.buckets || []).forEach(function (bucket) { byKey[bucket.key] = bucket; });
@@ -164,9 +192,9 @@
 
     var cards = [
       { label: "Dòng vào chưa gán mã", value: num(noCode.count),
-        note: compact(noCode.amount) + " đang bị ảnh hưởng", cls: "risk" },
+        note: compact(noCode.amount) + " đang bị ảnh hưởng", cls: "risk", bucket: "inbound_no_code" },
       { label: "Mã có tiền, chưa có hồ sơ", value: num(orphan.count),
-        note: compact(orphan.amount) + " đã phân bổ" },
+        note: compact(orphan.amount) + " đã phân bổ", bucket: "code_no_profile" },
       { label: "Độ phủ tiền vào",
         value: (coverage.allocated_percent || 0).toFixed(2).replace(".", ",") + "%",
         note: "trên tổng " + compact(coverage.inbound_total) + " tiền vào" },
@@ -176,11 +204,22 @@
     ];
 
     el("metrics").innerHTML = cards.map(function (card) {
-      return '<div class="metric ' + (card.cls || "") + '">' +
-        '<p class="label">' + esc(card.label) + "</p>" +
-        '<p class="value">' + esc(card.value) + "</p>" +
-        '<p class="note">' + esc(card.note) + "</p></div>";
+      var inner = '<span class="label">' + esc(card.label) + "</span>" +
+        '<span class="value">' + esc(card.value) + "</span>" +
+        '<span class="note">' + esc(card.note) +
+          (card.bucket ? ' <span class="go">Xem danh sách</span>' : "") + "</span>";
+      return card.bucket
+        ? '<button type="button" class="metric link ' + (card.cls || "") + '" data-bucket="' + esc(card.bucket) + '">' + inner + "</button>"
+        : '<div class="metric ' + (card.cls || "") + '">' + inner + "</div>";
     }).join("");
+
+    // Period and as-of time for every figure above, per the chart/KPI rule:
+    // a number with no date beside it cannot be checked.
+    var src = state.meta.source || {};
+    var per = state.summary.period || {};
+    el("asof").textContent = "Số liệu theo lần nạp " + (src.imported_at ? date(src.imported_at) : "—") +
+      (src.source_name ? " từ " + src.source_name : "") +
+      (per.from ? ", giao dịch từ " + date(per.from) + " đến " + date(per.to) : "") + ".";
 
     // Sorted by row count, not by money: the queue is a list of work to get
     // through, and "most rows first" is the order a person would work in.
@@ -198,6 +237,7 @@
     renderStatus();
     renderFlow();
     renderSeverity();
+    loadRecent();
     renderYears(state.queue.unmapped_by_year);
   }
 
@@ -348,7 +388,7 @@
   }
 
   var YEARS_MARGIN = { top: 14, right: 16, bottom: 24, left: 50 };
-  var YEARS_PLOT_H = 130;
+  var YEARS_PLOT_H = 120;
 
   // Bars stay <= 24px thick (never fill the slot — marks-and-anatomy.md) no
   // matter how wide the card is; leftover room becomes air between bars
@@ -360,7 +400,7 @@
     var gap = n > 1 ? (availableW - n * barW) / (n - 1) : 0;
     if (gap < minGap) {
       gap = minGap;
-      barW = Math.max(minBarW, (availableW - (n - 1) * gap) / n);
+      barW = Math.min(maxBarW, Math.max(minBarW, (availableW - (n - 1) * gap) / n));
     } else if (gap > maxGap) {
       gap = maxGap;
     }
@@ -387,7 +427,7 @@
 
     var maxCount = rows.reduce(function (best, row) { return Math.max(best, row.count); }, 0);
     var top = niceMax(maxCount || 1);
-    var ticks = [0, top / 2, top];
+    var ticks = top <= 2 ? [0, top] : [0, top / 2, top];
 
     var grid = ticks.map(function (tick) {
       var y = m.top + plotH - (tick / top) * plotH;
@@ -423,11 +463,16 @@
       '" role="group" aria-label="Tiền vào chưa gán mã, theo năm">' +
       grid + bars +
       '<g class="chart-tooltip" id="years-tip" aria-hidden="true">' +
-        '<rect x="0" y="0" width="90" height="38" rx="6"></rect>' +
+        '<rect x="0" y="0" width="90" height="38" rx="3"></rect>' +
         '<text class="tt-value" id="years-tip-value" x="9" y="16"></text>' +
         '<text class="tt-sub" id="years-tip-sub" x="9" y="30"></text>' +
       "</g>" +
-      "</svg>";
+      "</svg>" +
+      '<table class="data years-table"><thead><tr><th>Năm</th><th class="num">Số dòng</th><th class="num">Số tiền</th></tr></thead><tbody>' +
+      rows.map(function (row) {
+        return "<tr><td>" + esc(row.year) + '</td><td class="num">' + esc(num(row.count)) +
+          '</td><td class="num">' + esc(compact(row.amount)) + "</td></tr>";
+      }).join("") + "</tbody></table>";
   }
 
   function showYearsTooltip(group) {
@@ -562,10 +607,11 @@
   function paintQueueHead(isCodes) {
     var cols = queueColumns(isCodes);
     var sortRow = cols.map(function (col) {
-      var arrow = state.sortKey === col.key ? (state.sortDir === 1 ? " ▲" : " ▼") : "";
-      return '<th class="' + (col.numeric ? "num " : "") + 'sortable" data-field="' + col.key + '">' +
+      var arrow = state.sortKey === col.key ? (state.sortDir === 1 ? "▲" : "▼") : "";
+      var ariaSort = state.sortKey === col.key ? (state.sortDir === 1 ? "ascending" : "descending") : "none";
+      return '<th class="' + (col.numeric ? "num " : "") + 'sortable" data-field="' + col.key + '" aria-sort="' + ariaSort + '">' +
         '<button type="button" class="col-sort" data-field="' + col.key + '">' +
-        esc(col.label) + arrow + "</button></th>";
+        esc(col.label) + (arrow ? '<span class="arrow" aria-hidden="true">' + arrow + "</span>" : "") + "</button></th>";
     }).join("") + (isCodes ? "<th></th>" : "");
     var filterRow = cols.map(function (col) {
       return '<th><input type="text" class="col-filter" data-field="' + col.key + '" ' +
@@ -595,7 +641,9 @@
           return "<tr>" + cells + "</tr>";
         }).join("")
       : '<tr><td colspan="' + (cols.length + (isCodes ? 1 : 0)) +
-        '" class="muted">Không có dòng khớp bộ lọc trong số đã tải.</td></tr>';
+        '" class="muted">' + (state.rows.length
+          ? 'Không có dòng nào khớp bộ lọc trong số đã tải. <button type="button" class="link-btn" data-reset-filters>Xóa bộ lọc</button>'
+          : "Không có dòng nào.") + "</td></tr>";
 
     var filterActive = rows.length !== state.rows.length;
     // Count only. The sentence explaining the bucket now lives in the page
@@ -952,6 +1000,17 @@
 
     el("q").addEventListener("blur", function () {
       setTimeout(closeSuggest, 150);
+    });
+
+    el("metrics").addEventListener("click", function (event) {
+      var button = event.target.closest("[data-bucket]");
+      if (button) location.hash = "#/queue/" + button.dataset.bucket;
+    });
+
+    el("queue-body").addEventListener("click", function (event) {
+      if (!event.target.closest("[data-reset-filters]")) return;
+      state.filterText = {};
+      paintQueue();
     });
 
     el("queue-list").addEventListener("click", function (event) {
