@@ -22,7 +22,7 @@ does **not exist yet**.
 | M0 crawler endpoint | **not live**; contract + runnable stub | `docs/CRAWLER_ENDPOINT.md`, `mocks/crawler_stub.py`; 401/403/pagination covered by tests |
 | M1 skeleton, Docker, schema, sync | **done** | sync inserts 7 chunks, re-run reports `+0 ~0 -0 =7`; `/healthz` returns the last run |
 | M2 retrieval + `ask.py` | **done** | real model, 7 chunks embedded; a real question returns `page:hoc-bong` first at 0.612 cosine and is marked confident; a nonsense question is refused |
-| M3 compose + citations + guardrails + hand-off | **not started** | no LLM call, no prompt, no citation check, no hand-off ticket creation |
+| M3 compose + citations + guardrails + hand-off | **written, tested with a fake LLM** | `app/rag/{guardrails,compose,citations,answer}.py`; never run against a real model, wording of replies is a placeholder, not yet wired to an HTTP route (M4) |
 | M4 `/chat` + chat page + log + feedback | **not started** | no API route, no page, no cookie session, no rate limit |
 | M5 eval report, demo script | **blocked** | needs the real crawler export (the 7 chunks are synthetic placeholders) |
 
