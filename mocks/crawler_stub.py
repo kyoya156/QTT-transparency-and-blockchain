@@ -1,5 +1,5 @@
 """Local stand-in for the crawler endpoint, so the chatbot can be built against
-the real contract before M0 lands in QNE-knowledge-base.
+the real contract before M0 lands in the crawler repo.
 
     MOCK_CRAWLER_KEY=dev-local-key \
     MOCK_CRAWLER_FILE=tests/fixtures/chunks_sample.json \
@@ -21,7 +21,7 @@ from fastapi.responses import JSONResponse
 ALLOWED_SOURCE_TYPES = frozenset({"web", "post"})
 DEFAULT_FILE = "tests/fixtures/chunks_sample.json"
 
-app = FastAPI(title="QNE crawler stub", version="0.1.0")
+app = FastAPI(title="Crawler stub", version="0.1.0")
 
 
 def _api_key() -> str:

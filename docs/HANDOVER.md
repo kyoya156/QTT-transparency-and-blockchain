@@ -6,7 +6,12 @@
 > sync and their tests were dropped from `vh-branch`; the retrieval findings,
 > thresholds and embedding notes below still describe the code that runs.
 
-Read this before promising anything to the organisers. It separates what is
+> **Scope note (Nov 2026):** the product is now one internal finance-transparency
+> assistant, not a public sponsor chatbot. Login and payment items below are
+> superseded. The 0.55 / 0.30 thresholds are provisional until measured on real data,
+> and were calibrated with BGE-M3 float16, not the default model.
+
+Read this before relying on the status below. It separates what is
 **verified by a run** from what is **written but never executed**, and from what
 does **not exist yet**.
 
@@ -58,7 +63,7 @@ Until then, treat the refusal behaviour as "plausible", not "measured".
 1. **Real crawler export.** `tests/fixtures/chunks_sample.json` is synthetic;
    its URLs are `example.org`. Nothing about answer quality is known until the
    real 17 pages + posts are indexed.
-2. **Merge the M0 router** into `QNE-knowledge-base`, give the chatbot its own
+2. **Merge the M0 router** into `the crawler repo`, give the chatbot its own
    key, and confirm `message` returns 403 there (the stub does, the real repo is
    not on this machine).
 3. **LLM key** (`LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`) for M3. Without it,

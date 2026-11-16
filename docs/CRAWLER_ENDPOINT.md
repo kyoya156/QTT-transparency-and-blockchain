@@ -1,4 +1,4 @@
-# M0: `GET /api/public/chunks` in QNE-knowledge-base
+# M0: `GET /api/public/chunks` in the crawler repo
 
 The crawler repo is not on this machine, so this is the contract plus a reference
 implementation to drop in and adapt. `mocks/crawler_stub.py` implements the same

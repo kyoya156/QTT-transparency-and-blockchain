@@ -1,5 +1,11 @@
 # Decisions
 
+> **Direction change (Nov 2026):** the project is now financial transparency with
+> ONE internal AI assistant (roles: admin, dev, finance, volunteer; unlabelled data
+> is admin and dev only). The sponsor login, payment gateway and public 7-day
+> anonymous log described below belong to the earlier public-chatbot design and are
+> **superseded**. The embedding and retrieval decisions still apply.
+
 Answers given on 6 Nov 2026, plus the engineering choices made while building M1.
 Anything still marked **OPEN** blocks later milestones.
 

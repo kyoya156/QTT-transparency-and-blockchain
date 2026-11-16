@@ -40,6 +40,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--source", help="comma separated source types, e.g. web,post")
     args = parser.parse_args(argv)
 
+    print(
+        "note: dev tool, ignores department labels and access rules; do not use on real data",
+        file=sys.stderr,
+    )
     question = " ".join(args.question).strip()
     source_types = [value.strip() for value in args.source.split(",") if value.strip()] if args.source else None
 
