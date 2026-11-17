@@ -1,3 +1,4 @@
+require("dotenv").config();
 require("@nomicfoundation/hardhat-toolbox");
 const { subtask } = require("hardhat/config");
 const { TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD } = require("hardhat/builtin-tasks/task-names");
@@ -19,6 +20,14 @@ subtask(TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD, async (args, hre, runSuper) => {
 
 // Secrets come from the environment only. Never commit a key.
 const { DEPLOYER_KEY, BASE_SEPOLIA_RPC } = process.env;
+
+// Fail with a readable message instead of Hardhat's generic "private key too short".
+if (DEPLOYER_KEY && !/^(0x)?[0-9a-fA-F]{64}$/.test(DEPLOYER_KEY)) {
+  throw new Error(
+    "DEPLOYER_KEY must be a private key: 64 hex characters (optionally starting with 0x). " +
+      "A wallet address (40 hex characters) or a placeholder will not work."
+  );
+}
 
 module.exports = {
   solidity: { version: "0.8.24", settings: { optimizer: { enabled: true, runs: 200 } } },

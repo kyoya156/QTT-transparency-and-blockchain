@@ -20,6 +20,7 @@ One contract, three write functions, all restricted to `RECORDER_ROLE` (the list
 ## Base Sepolia
     DEPLOYER_KEY=0x<test wallet key> RECORDER_ADDRESS=0x<listener address> \
       npx hardhat run scripts/deploy.js --network baseSepolia
+Copy `chain/.env.example` to `chain/.env`, fill `DEPLOYER_KEY` and `RECORDER_ADDRESS`, then run the deploy with `--network baseSepolia`; the environment-variable form below also works.
 Needs a test wallet funded with free Base Sepolia ETH. Never commit a key; use a throwaway wallet for tests.
 
 `hardhat.config.js` compiles with the bundled solc-js, so no compiler download is needed.
