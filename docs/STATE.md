@@ -18,7 +18,7 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 | `main` | a1288ff: contract v2, Python bridge, record fields, hygiene pass. Start new work from here |
 | `verify-endpoint` | from `main`; verify endpoint for Tuan's verify screen |
 | `m3-answer` | chatbot answer flow, fake-LLM tests only. Parked |
-| `vh-branch` | inside `main` already; delete on GitHub when the other Hung agrees |
+| `vh-branch` | inside `main`; already deleted on GitHub (found gone 2026-11-18) |
 
 ## Done
 - `TransparencyLedger`: `recordIncome`, `recordExpense`, `anchorBatch(uint32 yyyymmdd, root, count)`, `verify`, pause; writes need `RECORDER_ROLE`; duplicate `refId` reverts. 10 hardhat tests pass.
