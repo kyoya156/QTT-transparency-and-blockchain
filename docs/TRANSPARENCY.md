@@ -20,9 +20,11 @@ Verification checks against the **anchored** root, never the root inside the pro
 - Leaf and node hashes use different prefixes; an odd node is promoted, not duplicated.
 - `LocalAnchor` is a hash-chained append-only file standing in for a public chain. Same day cannot be anchored twice.
 
+## On chain
+`transparency/chain.py` has `BaseSepoliaAnchor` with the same interface as `LocalAnchor`, writing to the live contract (see `chain/README.md` and `docs/STATE.md`).
+
 ## Not done yet
-- Real chain: `BaseSepoliaAnchor` is a stub. Needs a funded test wallet, RPC URL and key custody decision.
+- Real bank export (Kaggle history first) in place of `ledger.synthetic_day`.
+- Verify page and wiring into the dashboard.
 - IPFS pinning of the public file.
-- Real bank export in place of `ledger.synthetic_day`.
-- Verify page and wiring into the dashboard; role rules for who may request a proof.
 - Private file encryption at rest.

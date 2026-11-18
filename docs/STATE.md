@@ -17,13 +17,14 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 |---|---|
 | `main` | f3a6cf8: contract v2, Python bridge, record fields, reminder.md. Start new work from here |
 | `verify-endpoint` | from `main`; verify endpoint for Tuan's verify screen |
-| `transparency-contract` | merged into `main` (same commit); can be deleted |
-| `transparency-anchor` | inside `main` already |
+| `cleanup` | from `verify-endpoint` tip; repo hygiene pass, merge into `main` first |
+| `transparency-contract` | merged into `main`; local copy deleted, remote can be deleted |
+| `transparency-anchor` | inside `main` already; remote can be deleted |
 | `m3-answer` | chatbot answer flow, fake-LLM tests only. Parked |
 | `vh-branch` | inside `main` already; delete on GitHub when the other Hung agrees |
 
 ## Done
-- `TransparencyLedger`: `recordIncome`, `recordExpense`, `anchorBatch(uint32 yyyymmdd, root, count)`, `verify`, pause; writes need `RECORDER_ROLE`; duplicate `refId` reverts. 9 hardhat tests pass.
+- `TransparencyLedger`: `recordIncome`, `recordExpense`, `anchorBatch(uint32 yyyymmdd, root, count)`, `verify`, pause; writes need `RECORDER_ROLE`; duplicate `refId` reverts. 10 hardhat tests pass.
 - Contract v2 LIVE on Base Sepolia (84532): `0xC20ae8E6DEF7bF9eE347aa3Fa4213960bFA4fdf3` (2026-11-18). Publishes amount, currency, bank time, donor ID / recipient ID + type in plain text next to the leaf; `donorName` slot sent as "" until the client approves names. Listener granted `RECORDER_ROLE` in the deploy (read back: true); listener balance 0.0003 ETH. `chain/.env` CONTRACT_ADDRESS updated. Record in `chain/deployments/baseSepolia.json`.
 - v1 (hash only) is retired. UNVERIFIED which v1 address was the final one: STATE said `0x5978Ca158E41c461d0C34bEC5fE0B0945EDC3E53`, `chain/deployments/baseSepolia-v1.json` says `0x692b8CFFC6C18e4b5075034245BAD5ABA54bCcEF`. Irrelevant unless someone reads v1.
   - Deployer/admin `0x56F42f7639DC03b30554F1116eD007E59f4639C3`; listener `0xC16e7dFd7e4B18c1db0859D1Ada9416EF0c8BEe7`.
@@ -52,6 +53,7 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 - Where `REFID_SECRET` lives; encryption of stored records at rest.
 
 ## Log (newest first)
+- 2026-11-18 | Claude Code | hygiene: removed dead `BaseSepoliaAnchor` stub from anchor.py (real one is in chain.py), strict zip in batch, root README rewritten for the transparency project, stale doc sections fixed, stray root package-lock.json removed, gitignore node_modules/.ruff_cache, local merged branch deleted | transparency/anchor.py, transparency/batch.py, README.md, chain/README.md, docs/TRANSPARENCY.md, reminder.md, .gitignore, docs/STATE.md
 - 2026-11-18 | Claude Code | merged transparency-contract into main (fast-forward, f3a6cf8); new branch verify-endpoint | docs/STATE.md
 - 2026-11-18 | Claude Code | live smoke test on v2: record, retry, verify, tamper, anchor all as expected | docs/STATE.md, reminder.md
 - 2026-11-18 | Claude Code | deployed contract v2 to Base Sepolia 0xC20a…fdf3, listener role granted, .env updated, v1 record kept as baseSepolia-v1.json | chain/deployments/*, chain/.env (local), docs/STATE.md, reminder.md

@@ -11,7 +11,7 @@ Last updated: 2026-11-18. Task details live in `docs/STATE.md` ("Next").
 - [x] Add `LISTENER_KEY` and `REFID_SECRET` to `chain/.env`; live test record + anchor passed.
 - [ ] Webhook listener and verify endpoint.
 - [ ] Decide where `REFID_SECRET` is stored.
-- [ ] Review and merge `transparency-contract` into `main` when steps 1–2 work.
+- [x] Review and merge `transparency-contract` into `main`.
 
 ## The other Hung: blockchain, backup line
 Builds a second blockchain version in parallel, so the team can still submit if one fails.

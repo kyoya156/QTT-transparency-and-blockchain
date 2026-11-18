@@ -18,7 +18,7 @@ def build(day: str, records: list[dict], out_dir: str | pathlib.Path, anchor) ->
     out.mkdir(parents=True, exist_ok=True)
     records = sorted(records, key=lambda r: r["id"])
     salts = [os.urandom(16) for _ in records]
-    leaves = [merkle.leaf_hash(r, s) for r, s in zip(records, salts)]
+    leaves = [merkle.leaf_hash(r, s) for r, s in zip(records, salts, strict=True)]
     root_hex = merkle.root(leaves).hex()
     block = anchor.publish(day, root_hex, len(records))
     (out / f"{day}.public.json").write_text(json.dumps(

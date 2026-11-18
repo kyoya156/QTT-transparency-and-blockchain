@@ -8,3 +8,5 @@ __pycache__/
 *.log
 data/
 transparency_data/
+.ruff_cache/
+node_modules/

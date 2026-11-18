@@ -1,4 +1,7 @@
-"""Anchors. LocalAnchor is a hash-chained append-only file that stands in for a public chain in development."""
+"""LocalAnchor: a hash-chained append-only file that stands in for the chain in development.
+
+The on-chain anchor with the same interface is `transparency.chain.BaseSepoliaAnchor`.
+"""
 from __future__ import annotations
 
 import datetime
@@ -47,9 +50,3 @@ class LocalAnchor:
             prev = b["hash"]
         return True
 
-
-class BaseSepoliaAnchor:
-    """Placeholder. Needs a funded test wallet and RPC URL; see docs/TRANSPARENCY.md."""
-
-    def publish(self, day: str, root_hex: str, count: int) -> dict:
-        raise NotImplementedError("on-chain anchoring is not wired yet")
