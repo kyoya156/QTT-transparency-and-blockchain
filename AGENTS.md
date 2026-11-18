@@ -7,7 +7,6 @@ COS40005 Project A, financial transparency. Blockchain is the main focus. The ch
 Owner: Hung (final decider on technical choices).
 
 ## Rules
-- NDA: never write a client name or branding in code, docs or commits.
 - Never ask for, print or commit a private key. Keys live only in `chain/.env` (git-ignored). Use throwaway test wallets.
 - The chain proves a record existed unchanged at a block time. It does not prove the record is true. Never claim more.
 - Replies short. After a change, list the files touched.
