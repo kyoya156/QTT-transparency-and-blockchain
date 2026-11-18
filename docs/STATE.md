@@ -57,6 +57,7 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 - Where `REFID_SECRET` lives; encryption of stored records at rest.
 
 ## Log (newest first)
+- 2026-11-18 | Claude Code | reminder.md: team discussion section (decisions, gaps, 8 proposed technical integrity measures, open questions) | reminder.md, docs/STATE.md
 - 2026-11-18 | Claude Code | decision: team decides (client = advising teacher), technical integrity measures only, no third-party audits | docs/STATE.md
 - 2026-11-18 | Claude Code | full donor names: NFC + whitespace normalisation in records.py + test | transparency/records.py, tests/test_records.py, docs/STATE.md
 - 2026-11-18 | Claude Code | deployed v3 0x444c...6244, live smoke test passed, diagram updated for v3, explainer page | chain/deployments/*, chain/.env (local), docs/architecture.drawio, docs/explainer.html, docs/STATE.md, reminder.md
