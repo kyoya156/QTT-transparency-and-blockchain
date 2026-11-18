@@ -9,15 +9,16 @@ Last updated: 2026-11-18 by Claude Code session. Newest facts win. Keep this sho
 4. Commit this file with your work. Never put keys or secrets here.
 
 ## Now
-Building the transparency path: bank webhook -> listener -> database -> contract events -> verify.
-Branch: `transparency-contract` (includes `transparency-anchor`). Not yet merged to `main`.
+Contract v2 live and merged into `main`. Working on the verify endpoint (record + salt -> match + block time) on `verify-endpoint`.
+Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. All on `main`.
 
 ## Branches
 | Branch | State |
 |---|---|
-| `main` | 9bb5917: retrieval hardening merged, docs reframed to one internal assistant |
-| `transparency-anchor` | Python prototype: salted Merkle batch, local hash-chained anchor, prove/verify CLI |
-| `transparency-contract` | adds `chain/`: Solidity, tests, deploy and grant scripts, `.env` support |
+| `main` | f3a6cf8: contract v2, Python bridge, record fields, reminder.md. Start new work from here |
+| `verify-endpoint` | from `main`; verify endpoint for Tuan's verify screen |
+| `transparency-contract` | merged into `main` (same commit); can be deleted |
+| `transparency-anchor` | inside `main` already |
 | `m3-answer` | chatbot answer flow, fake-LLM tests only. Parked |
 | `vh-branch` | inside `main` already; delete on GitHub when the other Hung agrees |
 
@@ -51,6 +52,7 @@ Branch: `transparency-contract` (includes `transparency-anchor`). Not yet merged
 - Where `REFID_SECRET` lives; encryption of stored records at rest.
 
 ## Log (newest first)
+- 2026-11-18 | Claude Code | merged transparency-contract into main (fast-forward, f3a6cf8); new branch verify-endpoint | docs/STATE.md
 - 2026-11-18 | Claude Code | live smoke test on v2: record, retry, verify, tamper, anchor all as expected | docs/STATE.md, reminder.md
 - 2026-11-18 | Claude Code | deployed contract v2 to Base Sepolia 0xC20a…fdf3, listener role granted, .env updated, v1 record kept as baseSepolia-v1.json | chain/deployments/*, chain/.env (local), docs/STATE.md, reminder.md
 - 2026-11-18 | Claude Code | contract v2 (public non-sensitive fields + leaf), hardhat tests, bridge + ABI updated to v2 | chain/contracts/TransparencyLedger.sol, chain/test/TransparencyLedger.test.js, transparency/chain.py, transparency/abi.json, tests/test_chain_bridge.py, docs/STATE.md, reminder.md
