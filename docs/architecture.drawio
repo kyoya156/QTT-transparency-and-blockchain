@@ -1,0 +1,130 @@
+<mxGraphModel adaptiveColors="auto" grid="1" gridSize="10" page="1" pageWidth="1260" pageHeight="900">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="title" value="&lt;b&gt;QTT transparency: current architecture&lt;/b&gt; (2026-11-18, branch verify-endpoint)" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;" vertex="1" parent="1">
+      <mxGeometry x="20" y="10" width="700" height="30" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="zA" value="Data sources" style="swimlane;startSize=24;html=1;rounded=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+      <mxGeometry x="20" y="60" width="200" height="520" as="geometry"/>
+    </mxCell>
+    <mxCell id="kaggle" value="&lt;b&gt;Kaggle history file&lt;/b&gt;&lt;br&gt;cleaned by Dong" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#ffffff;strokeColor=#999999;" vertex="1" parent="zA">
+      <mxGeometry x="30" y="50" width="140" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="webhook" value="&lt;b&gt;Bank webhook&lt;/b&gt;&lt;br&gt;payOS / SePay / Casso (open)" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#ffffff;strokeColor=#999999;" vertex="1" parent="zA">
+      <mxGeometry x="30" y="170" width="140" height="60" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="zB" value="Off-chain backend (Python, our server)" style="swimlane;startSize=24;html=1;rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+      <mxGeometry x="260" y="60" width="620" height="520" as="geometry"/>
+    </mxCell>
+    <mxCell id="loader" value="&lt;b&gt;History loader&lt;/b&gt;&lt;br&gt;rows to records, one root per day" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#ffffff;strokeColor=#999999;" vertex="1" parent="zB">
+      <mxGeometry x="30" y="50" width="150" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="listener" value="&lt;b&gt;Webhook listener&lt;/b&gt;&lt;br&gt;check signature, dedupe tx id" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#ffffff;strokeColor=#999999;" vertex="1" parent="zB">
+      <mxGeometry x="30" y="170" width="150" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="cli" value="&lt;b&gt;scripts/transparency.py&lt;/b&gt;&lt;br&gt;batch / prove / verify&lt;br&gt;+ LocalAnchor (prototype)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="zB">
+      <mxGeometry x="30" y="300" width="150" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="records" value="&lt;b&gt;records.py&lt;/b&gt;&lt;br&gt;in: amount, currency, donor ID/name, bank time&lt;br&gt;out: amount, currency, recipient ID/type, bank time" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="zB">
+      <mxGeometry x="220" y="45" width="170" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="merkle" value="&lt;b&gt;merkle.py&lt;/b&gt;&lt;br&gt;leaf = SHA-256(0x00, salt, record)&lt;br&gt;daily Merkle root" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="zB">
+      <mxGeometry x="220" y="165" width="170" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="db" value="&lt;b&gt;Database&lt;/b&gt;&lt;br&gt;records + salts&lt;br&gt;(salts must persist)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;size=12;dashed=1;fillColor=#ffffff;strokeColor=#999999;" vertex="1" parent="zB">
+      <mxGeometry x="235" y="295" width="140" height="85" as="geometry"/>
+    </mxCell>
+    <mxCell id="bridge" value="&lt;b&gt;chain.py bridge&lt;/b&gt;&lt;br&gt;refId = HMAC(REFID_SECRET, tx id)&lt;br&gt;LedgerClient.record / verify&lt;br&gt;BaseSepoliaAnchor, Web3Backend" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="zB">
+      <mxGeometry x="430" y="45" width="170" height="90" as="geometry"/>
+    </mxCell>
+    <mxCell id="api" value="&lt;b&gt;Verify API&lt;/b&gt;&lt;br&gt;transparency/api.py, :8100&lt;br&gt;POST /verify (read-only)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="zB">
+      <mxGeometry x="430" y="185" width="170" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="env" value="&lt;b&gt;chain/.env&lt;/b&gt; (git-ignored)&lt;br&gt;LISTENER_KEY, REFID_SECRET,&lt;br&gt;CONTRACT_ADDRESS" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="zB">
+      <mxGeometry x="430" y="305" width="170" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="zC" value="Base Sepolia (chain id 84532)" style="swimlane;startSize=24;html=1;rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+      <mxGeometry x="920" y="60" width="320" height="520" as="geometry"/>
+    </mxCell>
+    <mxCell id="contract" value="&lt;b&gt;TransparencyLedger v2&lt;/b&gt;&lt;br&gt;0xC20a...fdf3&lt;br&gt;&lt;br&gt;recordIncome / recordExpense&lt;br&gt;(needs RECORDER_ROLE, refId write-once)&lt;br&gt;anchorBatch(day, root, count)&lt;br&gt;entries(refId), batches(day), pause&lt;br&gt;&lt;br&gt;public: leaf, amount, currency, bank time,&lt;br&gt;donor ID / recipient ID + type" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;strokeWidth=2;" vertex="1" parent="zC">
+      <mxGeometry x="30" y="45" width="260" height="200" as="geometry"/>
+    </mxCell>
+    <mxCell id="wlisten" value="&lt;b&gt;Listener wallet&lt;/b&gt; 0xC16e...&lt;br&gt;RECORDER_ROLE, signs writes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="zC">
+      <mxGeometry x="30" y="300" width="260" height="55" as="geometry"/>
+    </mxCell>
+    <mxCell id="wadmin" value="&lt;b&gt;Admin / deployer wallet&lt;/b&gt; 0x56F4...&lt;br&gt;grants roles, pause" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="zC">
+      <mxGeometry x="30" y="400" width="260" height="55" as="geometry"/>
+    </mxCell>
+    <mxCell id="ec1" value="role" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;defaultLabelBackgroundColor=page;endArrow=none;" edge="1" source="wlisten" target="contract" parent="zC">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="ec2" value="admin" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;defaultLabelBackgroundColor=page;endArrow=none;" edge="1" source="wadmin" target="wlisten" parent="zC">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="zD" value="People and tools" style="swimlane;startSize=24;html=1;rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+      <mxGeometry x="20" y="620" width="1220" height="150" as="geometry"/>
+    </mxCell>
+    <mxCell id="hardhat" value="&lt;b&gt;Hardhat (chain/)&lt;/b&gt;&lt;br&gt;deploy.js, grant-recorder.js,&lt;br&gt;10 contract tests (owner)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="zD">
+      <mxGeometry x="30" y="50" width="180" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="dash" value="&lt;b&gt;Dashboard + verify screen&lt;/b&gt;&lt;br&gt;Tuan, frontend" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#ffffff;strokeColor=#999999;" vertex="1" parent="zD">
+      <mxGeometry x="450" y="50" width="180" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="public" value="&lt;b&gt;Anyone&lt;/b&gt;&lt;br&gt;reads the contract on a&lt;br&gt;block explorer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="zD">
+      <mxGeometry x="930" y="50" width="180" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="legend" value="&lt;b&gt;Legend&lt;/b&gt;&lt;br&gt;solid box / arrow = built&lt;br&gt;dashed box / arrow = planned&lt;br&gt;&lt;br&gt;&lt;i&gt;The chain proves a record existed unchanged at a block time. It does not prove the record is true.&lt;/i&gt;" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;strokeColor=#999999;rounded=1;spacing=8;" vertex="1" parent="1">
+      <mxGeometry x="20" y="790" width="520" height="95" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="e1" value="cleaned file" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;defaultLabelBackgroundColor=page;dashed=1;" edge="1" source="kaggle" target="loader" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e2" value="event" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;defaultLabelBackgroundColor=page;dashed=1;" edge="1" source="webhook" target="listener" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;defaultLabelBackgroundColor=page;dashed=1;" edge="1" source="loader" target="records" parent="zB">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;defaultLabelBackgroundColor=page;dashed=1;" edge="1" source="listener" target="records" parent="zB">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e5" value="record + salt" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;defaultLabelBackgroundColor=page;" edge="1" source="records" target="merkle" parent="zB">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e6" value="store" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;defaultLabelBackgroundColor=page;dashed=1;" edge="1" source="merkle" target="db" parent="zB">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e7" value="leaf / root" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;defaultLabelBackgroundColor=page;" edge="1" source="merkle" target="bridge" parent="zB">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e8" value="leaf, refId" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;defaultLabelBackgroundColor=page;" edge="1" source="api" target="bridge" parent="zB">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e9" value="secrets" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;defaultLabelBackgroundColor=page;dashed=0;endArrow=none;strokeColor=#d6b656;" edge="1" source="env" target="api" parent="zB">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;defaultLabelBackgroundColor=page;" edge="1" source="cli" target="merkle" parent="zB">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e11" value="signed tx (writes)&lt;br&gt;eth_call (reads)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;defaultLabelBackgroundColor=page;strokeWidth=2;startArrow=classic;" edge="1" source="bridge" target="contract" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e12" value="POST /verify" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;defaultLabelBackgroundColor=page;dashed=1;" edge="1" source="dash" target="api" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e13" value="read" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;defaultLabelBackgroundColor=page;" edge="1" source="public" target="contract" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e14" value="deploy, grant role" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;defaultLabelBackgroundColor=page;" edge="1" source="hardhat" target="wadmin" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>

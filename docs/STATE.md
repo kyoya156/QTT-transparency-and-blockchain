@@ -51,6 +51,7 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 - Where `REFID_SECRET` lives; encryption of stored records at rest.
 
 ## Log (newest first)
+- 2026-11-18 | Claude Code | architecture diagram (draw.io, built = solid, planned = dashed); official jgraph drawio skill installed at user level (~/.claude/skills/drawio) | docs/architecture.drawio, docs/STATE.md
 - 2026-11-18 | Claude Code | verify endpoint + tests, live read-only check on smoke record | transparency/api.py, tests/test_verify_api.py, docs/STATE.md
 - 2026-11-18 | Claude Code | cleanup fast-forwarded into main and verify-endpoint, pushed; transparency-contract/anchor already gone on remote; cleanup branch deleted | docs/STATE.md
 - 2026-11-18 | Claude Code | hygiene: removed dead `BaseSepoliaAnchor` stub from anchor.py (real one is in chain.py), strict zip in batch, root README rewritten for the transparency project, stale doc sections fixed, stray root package-lock.json removed, gitignore node_modules/.ruff_cache, local merged branch deleted | transparency/anchor.py, transparency/batch.py, README.md, chain/README.md, docs/TRANSPARENCY.md, reminder.md, .gitignore, docs/STATE.md
