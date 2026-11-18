@@ -4,12 +4,13 @@ One contract, three write functions, all restricted to `RECORDER_ROLE` (the list
 
 | Function | Event | Purpose |
 |---|---|---|
-| `recordIncome(refId, leaf)` | `Income` | money in |
-| `recordExpense(refId, leaf)` | `Expense` | money out |
+| `recordIncome(refId, leaf, (amount, txTime, currency, donorId, donorName))` | `Income` | money in |
+| `recordExpense(refId, leaf, (amount, txTime, currency, recipientId, recipientType))` | `Expense` | money out |
 | `anchorBatch(day, root, count)` | `BatchAnchored` | Merkle root of the starting history, once per day |
 
 - `refId` is an HMAC of the bank's transaction id, so webhook retries are rejected on-chain (`AlreadyRecorded`).
-- `leaf` is the salted hash of the full record, built off-chain. Nothing readable is stored.
+- `leaf` is the salted hash of the full record, built off-chain.
+- Public in plain text (v2): amount, currency, bank time, donor ID, recipient ID and type. `donorName` is sent empty until the client approves names on chain. Everything on chain is permanent; use codes for people, never children's names.
 - Admin can grant or revoke recorders and `pause()` writes if the recorder key leaks.
 
 ## Run
