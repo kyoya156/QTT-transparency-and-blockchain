@@ -46,6 +46,7 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 - Record shape (owner, 2026-11-18), in `transparency/records.py`: money in = amount + currency + donor_name (`Anonymous` allowed) + donor_id + bank time; money out = amount + currency + recipient_id + recipient_type (`unassigned` until Dong's cleaned data decides) + bank time. Bank time is separate from block time.
 - Public vs hashed on chain (client, 2026-11-18, replaces the v2 choice): hash everything. On chain only refId (HMAC), leaf, block time, and per day root + count. Readable records only via the AI app's department permissions (table labels `bank_transaction` / `disbursement`), with audit. Public verify (`transparency/api.py`) stays open: it only confirms data the caller already has.
 - UNVERIFIED with client: whether the per-day `count` on chain is acceptable (it shows how many transactions a history day had). Drop it in v3 before deploy if not.
+- Who decides (owner, 2026-11-18): the "client" is a teacher advising the team; the team decides and asks for advice when unclear. No measures that need a third-party auditor; integrity comes from technical measures only. External data feeds (payOS, SePay, Casso) are fine as sources.
 - Team: Hung (owner) main blockchain line; the other Hung a parallel backup blockchain line; Dong downloads and cleans the Kaggle dataset; Tuan builds the dashboard/frontend. See `reminder.md`.
 - Each transaction recorded as its own event, plus one root per day for the starting history.
 - The listener service is the trusted writer. Two-person approval (multisig) later.
@@ -56,6 +57,7 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 - Where `REFID_SECRET` lives; encryption of stored records at rest.
 
 ## Log (newest first)
+- 2026-11-18 | Claude Code | decision: team decides (client = advising teacher), technical integrity measures only, no third-party audits | docs/STATE.md
 - 2026-11-18 | Claude Code | full donor names: NFC + whitespace normalisation in records.py + test | transparency/records.py, tests/test_records.py, docs/STATE.md
 - 2026-11-18 | Claude Code | deployed v3 0x444c...6244, live smoke test passed, diagram updated for v3, explainer page | chain/deployments/*, chain/.env (local), docs/architecture.drawio, docs/explainer.html, docs/STATE.md, reminder.md
 - 2026-11-18 | Claude Code | client: hash all. Contract v3 hash-only + tests, ABI, bridge, verify endpoint trimmed, permission-gated readable records in the app (ledger_records, /api/ledger) + tests. v3 not deployed | chain/contracts/TransparencyLedger.sol, chain/test/TransparencyLedger.test.js, transparency/abi.json, transparency/chain.py, transparency/api.py, app/models.py, app/api/ledger.py, app/main.py, tests/test_chain_bridge.py, tests/test_verify_api.py, tests/test_ledger_api.py, docs/STATE.md
