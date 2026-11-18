@@ -15,11 +15,8 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 ## Branches
 | Branch | State |
 |---|---|
-| `main` | f3a6cf8: contract v2, Python bridge, record fields, reminder.md. Start new work from here |
+| `main` | a1288ff: contract v2, Python bridge, record fields, hygiene pass. Start new work from here |
 | `verify-endpoint` | from `main`; verify endpoint for Tuan's verify screen |
-| `cleanup` | from `verify-endpoint` tip; repo hygiene pass, merge into `main` first |
-| `transparency-contract` | merged into `main`; local copy deleted, remote can be deleted |
-| `transparency-anchor` | inside `main` already; remote can be deleted |
 | `m3-answer` | chatbot answer flow, fake-LLM tests only. Parked |
 | `vh-branch` | inside `main` already; delete on GitHub when the other Hung agrees |
 
@@ -53,6 +50,7 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 - Where `REFID_SECRET` lives; encryption of stored records at rest.
 
 ## Log (newest first)
+- 2026-11-18 | Claude Code | cleanup fast-forwarded into main and verify-endpoint, pushed; transparency-contract/anchor already gone on remote; cleanup branch deleted | docs/STATE.md
 - 2026-11-18 | Claude Code | hygiene: removed dead `BaseSepoliaAnchor` stub from anchor.py (real one is in chain.py), strict zip in batch, root README rewritten for the transparency project, stale doc sections fixed, stray root package-lock.json removed, gitignore node_modules/.ruff_cache, local merged branch deleted | transparency/anchor.py, transparency/batch.py, README.md, chain/README.md, docs/TRANSPARENCY.md, reminder.md, .gitignore, docs/STATE.md
 - 2026-11-18 | Claude Code | merged transparency-contract into main (fast-forward, f3a6cf8); new branch verify-endpoint | docs/STATE.md
 - 2026-11-18 | Claude Code | live smoke test on v2: record, retry, verify, tamper, anchor all as expected | docs/STATE.md, reminder.md
