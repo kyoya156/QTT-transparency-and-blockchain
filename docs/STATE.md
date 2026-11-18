@@ -9,14 +9,14 @@ Last updated: 2026-11-18 by Claude Code session. Newest facts win. Keep this sho
 4. Commit this file with your work. Never put keys or secrets here.
 
 ## Now
-Contract v2 live and merged into `main`. Working on the verify endpoint (record + salt -> match + block time) on `verify-endpoint`.
+Contract v2 live and merged into `main`. Verify endpoint done on `verify-endpoint` (not merged yet). Tuan can build the verify screen against it.
 Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. All on `main`.
 
 ## Branches
 | Branch | State |
 |---|---|
 | `main` | a1288ff: contract v2, Python bridge, record fields, hygiene pass. Start new work from here |
-| `verify-endpoint` | from `main`; verify endpoint for Tuan's verify screen |
+| `verify-endpoint` | from `main`; verify endpoint done, awaiting review/merge |
 | `m3-answer` | chatbot answer flow, fake-LLM tests only. Parked |
 | `vh-branch` | inside `main`; already deleted on GitHub (found gone 2026-11-18) |
 
@@ -29,13 +29,14 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 - Listener funded (owner, 2026-11-18). `LISTENER_KEY` and `REFID_SECRET` in `chain/.env` (owner). Never change `REFID_SECRET` now.
 - Live smoke test on v2 (2026-11-18): income record `TEST-SMOKE-0001` (amount 1, donor `TEST-DONOR`) tx `0x5e7380930844a50995c7154e4800fd9d9ef5e42f42422c4db3686306151911d9`; retry returned `exists`; verify true; tampered record false. Test anchor on fake day 1900-01-01 tx `0x3c87c73f506eb9de98e87ec08e1b030446eb0e2a58677d79890168fcf8f1b0c2`. Record + salt in `transparency_data/smoke-test.json` (git-ignored). Both are permanent test entries; ignore them in the dashboard (`TEST-` prefix, day 19000101).
 - Python bridge `transparency/chain.py`: `ref_id` (HMAC), `LedgerClient.record/verify` (checks `entries` first, retry = `exists`, mismatch = `ConflictError`), `BaseSepoliaAnchor` (same interface as `LocalAnchor`), `Web3Backend`. ABI in `transparency/abi.json` (re-copy after any contract change). `web3` in `requirements-chain.txt`. 9 tests with a fake contract; read-only status call against the live contract works.
+- Verify endpoint `transparency/api.py` (standalone FastAPI, read-only, no LISTENER_KEY): `uvicorn transparency.api:app --port 8100`; `POST /verify {"record": {...}, "salt": "hex"}` -> `match`, `found` (found + no match = record or salt changed), `block_time`, `on_chain` (direction, amount, bank_time), `note`. CORS via `VERIFY_CORS_ORIGINS`. 9 tests (fake contract). Live check on the smoke record: match true, tampered false.
 - Chatbot M3 written on its own branch (parked).
 
 ## Next (in order)
 1. Kaggle history loader: transactions into the database, daily root via `anchorBatch`. Waiting on Dong's cleaned file and column list.
 2. Webhook listener: verify signature, dedupe on transaction id, store record and salt (salts must persist), call the bridge.
-3. Verify endpoint or page: record + salt -> rebuild leaf -> `verify()` -> block time.
-4. Small hardening: reject bank time later than now (+ a few minutes) in `records.py`; the contract does not check it.
+3. Small hardening: reject bank time later than now (+ a few minutes) in `records.py`; the contract does not check it. Real case: smoke record bank time 05:00Z is after its block time 03:45Z.
+4. Merge `verify-endpoint` into `main` once the owner has reviewed it.
 
 ## Decisions
 - Record shape (owner, 2026-11-18), in `transparency/records.py`: money in = amount + currency + donor_name (`Anonymous` allowed) + donor_id + bank time; money out = amount + currency + recipient_id + recipient_type (`unassigned` until Dong's cleaned data decides) + bank time. Bank time is separate from block time.
@@ -50,6 +51,7 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 - Where `REFID_SECRET` lives; encryption of stored records at rest.
 
 ## Log (newest first)
+- 2026-11-18 | Claude Code | verify endpoint + tests, live read-only check on smoke record | transparency/api.py, tests/test_verify_api.py, docs/STATE.md
 - 2026-11-18 | Claude Code | cleanup fast-forwarded into main and verify-endpoint, pushed; transparency-contract/anchor already gone on remote; cleanup branch deleted | docs/STATE.md
 - 2026-11-18 | Claude Code | hygiene: removed dead `BaseSepoliaAnchor` stub from anchor.py (real one is in chain.py), strict zip in batch, root README rewritten for the transparency project, stale doc sections fixed, stray root package-lock.json removed, gitignore node_modules/.ruff_cache, local merged branch deleted | transparency/anchor.py, transparency/batch.py, README.md, chain/README.md, docs/TRANSPARENCY.md, reminder.md, .gitignore, docs/STATE.md
 - 2026-11-18 | Claude Code | merged transparency-contract into main (fast-forward, f3a6cf8); new branch verify-endpoint | docs/STATE.md

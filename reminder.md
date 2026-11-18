@@ -9,7 +9,8 @@ Last updated: 2026-11-18. Task details live in `docs/STATE.md` ("Next").
 - [x] Deploy contract v2 (`0xC20ae8E6DEF7bF9eE347aa3Fa4213960bFA4fdf3`) and update `CONTRACT_ADDRESS` in `chain/.env`.
 - [ ] Settle with the client whether donor names go on chain (needs donor consent).
 - [x] Add `LISTENER_KEY` and `REFID_SECRET` to `chain/.env`; live test record + anchor passed.
-- [ ] Webhook listener and verify endpoint.
+- [x] Verify endpoint (`transparency/api.py`).
+- [ ] Webhook listener.
 - [ ] Decide where `REFID_SECRET` is stored.
 - [x] Review and merge `transparency-contract` into `main`.
 
