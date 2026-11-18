@@ -8,7 +8,8 @@ Last updated: 2026-11-18. Task details live in `docs/STATE.md` ("Next").
 - [x] Python bridge `transparency/chain.py` (code + fake-contract tests).
 - [x] Deploy contract v2 (`0xC20ae8E6DEF7bF9eE347aa3Fa4213960bFA4fdf3`) and update `CONTRACT_ADDRESS` in `chain/.env`.
 - [x] Settle with the client what goes on chain: hash everything (2026-11-18). Readable data only via the app's department permissions.
-- [ ] Deploy contract v3 (hash only) and update `CONTRACT_ADDRESS`; re-run the smoke test. Steps in STATE "Next" 0.
+- [x] Deploy contract v3 (`0x444cbfb6224B5a9cB8bE25c2BAa4AC646a446244`); smoke test passed.
+- [ ] Share `docs/explainer.html` with the team (how the ledger works).
 - [ ] Ask the client if the per-day transaction count on chain is fine.
 - [x] Add `LISTENER_KEY` and `REFID_SECRET` to `chain/.env`; live test record + anchor passed.
 - [x] Verify endpoint (`transparency/api.py`).

@@ -1,0 +1,470 @@
+<title>QTT Ledger Explained</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column, a notary's ledger feel; hashes set in mono, "verified" seal green as the accent. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --ink: #16202e;
+  --muted: #5a6575;
+  --line: #dde2e9;
+  --accent: #0d7a5f;
+  --accent-soft: #e2f3ed;
+  --warn: #a4471b;
+  --warn-soft: #fbeae1;
+  --code-bg: #eef1f5;
+  --font-display: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161d; --surface: #18202a; --ink: #e6ebf2; --muted: #9aa6b6; --line: #2a3542;
+    --accent: #4cc9a0; --accent-soft: #15362c; --warn: #f0a37c; --warn-soft: #3a2218; --code-bg: #1f2935;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161d; --surface: #18202a; --ink: #e6ebf2; --muted: #9aa6b6; --line: #2a3542;
+  --accent: #4cc9a0; --accent-soft: #15362c; --warn: #f0a37c; --warn-soft: #3a2218; --code-bg: #1f2935;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 16px/1.65 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 64px;
+}
+main { max-width: 780px; margin: 0 auto; display: grid; gap: 56px; }
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.2; text-wrap: balance; margin: 0; }
+h1 { font-size: 2.3rem; letter-spacing: -0.01em; }
+h2 { font-size: 1.55rem; }
+h3 { font-size: 1.1rem; margin-top: 8px; }
+p { margin: 0; }
+section { display: grid; gap: 16px; min-width: 0; }
+.eyebrow { font: 600 0.75rem/1 var(--font-body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.lede { font-size: 1.15rem; color: var(--muted); }
+code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+a { color: var(--accent); }
+nav.toc { display: flex; flex-wrap: wrap; gap: 8px; }
+nav.toc a { text-decoration: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  padding: 4px 12px; border-radius: 999px; font-size: 0.88rem; }
+nav.toc a:hover, nav.toc a:focus-visible { border-color: var(--accent); outline: none; }
+.thesis { border-left: 4px solid var(--accent); background: var(--accent-soft); padding: 16px 20px; border-radius: 0 8px 8px 0; font-size: 1.05rem; }
+.caution { border-left: 4px solid var(--warn); background: var(--warn-soft); padding: 14px 18px; border-radius: 0 8px 8px 0; }
+.terms { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.term { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.term b { font-family: var(--font-display); font-size: 1rem; }
+.term span { color: var(--muted); font-size: 0.93rem; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
+th, td { text-align: left; vertical-align: top; padding: 9px 10px; border-bottom: 1px solid var(--line); }
+th { font-family: var(--font-display); font-weight: 600; white-space: nowrap; }
+td.yes { color: var(--accent); font-weight: 600; }
+td.no { color: var(--warn); font-weight: 600; }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow-x: auto; }
+.diagram pre.mermaid { margin: 0; background: transparent; }
+ol.steps { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
+ol.steps li::marker { font-family: var(--font-mono); color: var(--accent); }
+/* demo */
+.demo { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 14px; }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.fields label { display: grid; gap: 4px; font-size: 0.82rem; color: var(--muted); min-width: 0; }
+.fields input { font: 0.95rem var(--font-mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; width: 100%; }
+.fields input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.out { display: grid; gap: 4px; min-width: 0; }
+.out .k { font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.out .v { font-family: var(--font-mono); font-size: 0.85rem; background: var(--code-bg); padding: 8px 10px; border-radius: 6px; overflow-wrap: anywhere; }
+.buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+button { font: 600 0.9rem var(--font-body); border-radius: 6px; padding: 8px 14px; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: var(--surface); }
+button.ghost { background: transparent; color: var(--accent); }
+button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.verdict { font-weight: 600; padding: 10px 12px; border-radius: 6px; }
+.verdict.ok { background: var(--accent-soft); color: var(--accent); }
+.verdict.bad { background: var(--warn-soft); color: var(--warn); }
+.verdict.idle { background: var(--code-bg); color: var(--muted); font-weight: 500; }
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
+details + details { margin-top: -6px; }
+summary { cursor: pointer; font-weight: 600; }
+details p { margin-top: 8px; color: var(--muted); }
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; font-size: 0.92rem; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; font-family: var(--font-mono); font-size: 0.85rem; overflow-wrap: anywhere; min-width: 0; }
+@media (max-width: 520px) { h1 { font-size: 1.8rem; } .facts { grid-template-columns: 1fr; } .facts dd { margin-bottom: 8px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<main>
+<header style="display:grid;gap:14px">
+  <span class="eyebrow">COS40005 Project A · financial transparency</span>
+  <h1>How the QTT ledger works</h1>
+  <p class="lede">A walk-through of the blockchain part of the project: the few ideas you need, what each piece of our code does, how money records move through it, and why each decision was made. State as of 18 Nov 2026, contract v3.</p>
+  <nav class="toc" aria-label="Sections">
+    <a href="#idea">The idea</a><a href="#basics">Blockchain basics</a><a href="#hash">Hashes and salt</a>
+    <a href="#refid">refId</a><a href="#merkle">Daily roots</a><a href="#arch">Architecture</a><a href="#flows">The flows</a>
+    <a href="#where">What lives where</a><a href="#decisions">Decisions</a><a href="#limits">Limits</a><a href="#live">Live facts</a><a href="#quiz">Check yourself</a>
+  </nav>
+</header>
+
+<section id="idea">
+  <span class="eyebrow">1 · The idea in one paragraph</span>
+  <h2>The chain is a public notary, not a database</h2>
+  <p>The charity receives and spends money. People want to trust that the records we show them were not quietly edited later. So, every time money moves, we take a <b>fingerprint</b> of the record and post only that fingerprint to a public blockchain. The blockchain stamps it with a time and nobody, including us, can change or delete it afterwards. Later, anyone holding the record can fingerprint it again and compare. Same fingerprint means the record is exactly what it was when it was stamped.</p>
+  <p class="thesis">The chain proves a record <b>existed unchanged at a block time</b>. It does <b>not</b> prove the record is <b>true</b>. If someone types a wrong amount before it is stamped, the chain will faithfully protect the wrong amount.</p>
+  <p>Think of a notary stamping a sealed envelope: the stamp proves when the envelope was sealed and that it has not been opened, but says nothing about whether the letter inside is honest.</p>
+</section>
+
+<section id="basics">
+  <span class="eyebrow">2 · Blockchain basics</span>
+  <h2>Eight words you need</h2>
+  <div class="terms">
+    <div class="term"><b>Blockchain</b><span>A shared, append-only list of transactions kept by thousands of computers. New entries are grouped into blocks; old blocks cannot be changed without everyone noticing.</span></div>
+    <div class="term"><b>Base Sepolia</b><span>The network we use. "Base" is a cheap Ethereum network; "Sepolia" means its <i>test</i> version: same technology, but the coins are free and worthless. Chain id 84532.</span></div>
+    <div class="term"><b>Smart contract</b><span>A small program stored on the chain with its own storage. Ours is <code>TransparencyLedger</code>. Its rules (who may write, no overwrites) run on every node, so we cannot bypass them either.</span></div>
+    <div class="term"><b>Wallet / address</b><span>An account on the chain, like <code>0xC16e…</code>. Public, like an email address. Anyone can see what it did.</span></div>
+    <div class="term"><b>Private key</b><span>The secret that lets a wallet sign. Whoever has it <i>is</i> that wallet. Ours live only in <code>chain/.env</code>, never in git or chat.</span></div>
+    <div class="term"><b>Transaction &amp; gas</b><span>A signed request to change chain state (e.g. "record this hash"). It costs a small fee called gas, paid in ETH. Reading the chain is free.</span></div>
+    <div class="term"><b>Block time</b><span>The timestamp of the block that included our transaction. This is the "when" the chain can prove. Separate from the bank's own time.</span></div>
+    <div class="term"><b>Role</b><span>A permission inside our contract. <code>RECORDER_ROLE</code> may write records; the admin role may grant roles and pause the contract.</span></div>
+  </div>
+</section>
+
+<section id="hash">
+  <span class="eyebrow">3 · Hashes and salt</span>
+  <h2>The fingerprint: SHA-256 with a salt</h2>
+  <p>A <b>hash</b> function turns any data into a fixed 32-byte value. Three properties matter: the same input always gives the same hash; changing even one character gives a completely different hash; and you cannot work backwards from the hash to the input.</p>
+  <p>But a hash alone has a weakness here. Donation records are guessable: an attacker could try "500,000 VND from D-001 on 16 Nov" and hash it, and if it matches what is on chain, they learned the record. So we add a <b>salt</b>: 16 random bytes generated per record and kept in our database. Without the salt, guessing is hopeless. With the salt, anyone we give it to can check.</p>
+  <p>Our exact formula, in <code>transparency/merkle.py</code>: <code>leaf = SHA-256( 0x00 + salt + canonical JSON of the record )</code>. "Canonical" means the keys are sorted and spacing is fixed, so the same record always produces the same bytes. The leading <code>0x00</code> marks it as a leaf so it can never be confused with an inner node of a Merkle tree (section 5).</p>
+
+  <div class="demo" aria-label="Hash demo">
+    <h3>Try it: record, then tamper</h3>
+    <p style="color:var(--muted);font-size:.93rem">This runs the same formula as our Python code, in your browser. The example's hash matches what Python produces for it. Press "Stamp on chain", then change the amount by one digit.</p>
+    <div class="fields">
+      <label for="f-id">id (bank transaction)<input id="f-id" value="BANK-2026-0042"></label>
+      <label for="f-amount">amount (VND)<input id="f-amount" value="500000" inputmode="numeric"></label>
+      <label for="f-donor">donor_id<input id="f-donor" value="D-001"></label>
+      <label for="f-name">donor_name<input id="f-name" value="Lan"></label>
+      <label for="f-time">time (bank time)<input id="f-time" value="2026-11-16T09:30:00+07:00"></label>
+      <label for="f-salt">salt (hex, kept in our DB)<input id="f-salt" value="9f2c4e1a7b3d5f60112233445566aabb"></label>
+    </div>
+    <div class="out"><span class="k">Canonical record (what gets hashed)</span><div class="v" id="o-canon"></div></div>
+    <div class="out"><span class="k">Leaf = the fingerprint</span><div class="v" id="o-leaf"></div></div>
+    <div class="buttons">
+      <button id="b-stamp" type="button">Stamp on chain</button>
+      <button id="b-salt" type="button" class="ghost">New random salt</button>
+      <button id="b-reset" type="button" class="ghost">Reset example</button>
+    </div>
+    <div class="out"><span class="k">What the chain stored</span><div class="v" id="o-chain">nothing yet</div></div>
+    <div class="verdict idle" id="o-verdict" role="status">Stamp the record first.</div>
+  </div>
+</section>
+
+<section id="refid">
+  <span class="eyebrow">4 · refId</span>
+  <h2>The label on the envelope</h2>
+  <p>The chain stores each fingerprint under a key so we can find it again. We cannot use the bank's transaction id directly, because that id is itself information. So the key is <code>refId = HMAC-SHA256(REFID_SECRET, bank transaction id)</code>. HMAC is a hash mixed with a secret: only our server, which knows <code>REFID_SECRET</code>, can compute it, so outsiders cannot link a refId to a bank transfer.</p>
+  <p>The refId also stops duplicates. Bank webhooks often resend the same event. The contract refuses a second write for a refId it already has, and our Python bridge checks first and answers "exists" instead of paying for a failed transaction. If the same refId ever arrives with a <i>different</i> fingerprint, the bridge raises <code>ConflictError</code>: something changed a record that was already stamped, and a human must look.</p>
+  <p class="caution"><b>Never change REFID_SECRET.</b> If it changes, every future refId differs from the old ones, and we can no longer find old records on chain from their bank ids.</p>
+</section>
+
+<section id="merkle">
+  <span class="eyebrow">5 · Daily roots</span>
+  <h2>Stamping a whole day at once</h2>
+  <p>New transactions get stamped one by one. But the starting history (the Kaggle file Dong is cleaning) may have thousands of rows, and one transaction per row would cost a lot of gas. So for history we build a <b>Merkle tree</b> per day: hash the leaves in pairs, then hash those results in pairs, until one value is left, the <b>root</b>. Only the root goes on chain, with <code>anchorBatch(day, root, count)</code>.</p>
+  <div class="diagram">
+<pre class="mermaid">
+flowchart BT
+  L1["leaf 1"] --> A["hash(1,2)"]
+  L2["leaf 2"] --> A
+  L3["leaf 3"] --> B["hash(3,4)"]
+  L4["leaf 4"] --> B
+  A --> R["ROOT of 16 Nov (on chain)"]
+  B --> R
+</pre>
+  </div>
+  <p>To prove leaf 3 belongs to that day, you need only leaf 3, its neighbour leaf 4, and <code>hash(1,2)</code>: hash upward and see whether you land on the root. That list of neighbours is the <b>proof</b>; <code>scripts/transparency.py prove</code> produces it. Change any record of that day and the root no longer matches.</p>
+</section>
+
+<section id="arch">
+  <span class="eyebrow">6 · Architecture</span>
+  <h2>The pieces and who talks to whom</h2>
+  <p>Three zones. The <b>sources</b> produce money events. <b>Our server</b> (Python) turns them into records, fingerprints them, keeps the readable copy and talks to the chain. The <b>chain</b> keeps only fingerprints. Dashed boxes are planned, solid boxes exist today. The editable version is <code>docs/architecture.drawio</code>.</p>
+  <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+  subgraph SRC["Sources"]
+    K["Kaggle history file (Dong)"]:::planned
+    W["Bank webhook (payOS / SePay / Casso)"]:::planned
+  end
+  subgraph SRV["Our server (Python)"]
+    LD["History loader"]:::planned
+    LS["Webhook listener"]:::planned
+    REC["records.py: record shape"]
+    MK["merkle.py: leaf and daily root"]
+    DB[("ledger_records: record + salt")]
+    BR["chain.py bridge: refId, record, verify"]
+    RA["Records API /api/ledger (login + labels)"]
+    PV["Public verify POST /verify"]
+    PERM["access.py: departments, labels, audit"]
+  end
+  subgraph CH["Base Sepolia"]
+    C["TransparencyLedger v3: refId to leaf + block time"]
+  end
+  K --> LD --> REC
+  W --> LS --> REC
+  REC --> MK --> BR
+  MK --> DB
+  BR -- "signed tx (listener key)" --> C
+  PERM --> RA --> DB
+  RA -. "check_chain" .-> BR
+  PV --> BR
+  T["Tuan's dashboard"]:::planned --> RA
+  T --> PV
+  P["Anyone with an explorer"] --> C
+  classDef planned stroke-dasharray: 5 5
+</pre>
+  </div>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Piece</th><th>File</th><th>Job</th></tr></thead>
+    <tbody>
+      <tr><td>Record shape</td><td><code>transparency/records.py</code></td><td>Builds a clean record: money in = amount, currency, donor id, donor name (or "Anonymous"), bank time. Money out = amount, currency, recipient id, recipient type, bank time. Rejects bad input.</td></tr>
+      <tr><td>Fingerprints</td><td><code>transparency/merkle.py</code></td><td>Canonical JSON, salted leaf hash, Merkle root and proofs.</td></tr>
+      <tr><td>Bridge</td><td><code>transparency/chain.py</code></td><td>The only code that talks to the chain. Computes refId, sends <code>record</code> and <code>anchorBatch</code>, reads <code>entries</code>, handles retries and conflicts.</td></tr>
+      <tr><td>Contract</td><td><code>chain/contracts/TransparencyLedger.sol</code></td><td>Stores refId to (leaf, block time) and day to (root, count). Only <code>RECORDER_ROLE</code> may write; nothing can be overwritten; admin can pause.</td></tr>
+      <tr><td>Readable records</td><td><code>app/models.py</code> <code>LedgerRecord</code>, <code>app/api/ledger.py</code></td><td>Keeps each record with its salt. Serves them only to logged-in users whose department may read them, and logs every read.</td></tr>
+      <tr><td>Permissions</td><td><code>app/access.py</code></td><td>From the AI part: users, departments (admin, dev, finance, volunteer), labels set by the admin, audit log.</td></tr>
+      <tr><td>Public verify</td><td><code>transparency/api.py</code></td><td>Anyone sends a record + salt and gets back "match" and the block time. Returns nothing they did not send.</td></tr>
+      <tr><td>Hardhat</td><td><code>chain/</code></td><td>Tooling to compile, test and deploy the contract, and grant roles.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="flows">
+  <span class="eyebrow">7 · The flows</span>
+  <h2>Four journeys a record takes</h2>
+
+  <h3>A. A live donation arrives (planned: listener not built yet)</h3>
+  <div class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+  participant Bank as Bank webhook
+  participant L as Listener
+  participant DB as ledger_records
+  participant B as chain.py
+  participant C as Contract
+  Bank->>L: transfer event (signed)
+  L->>L: check signature, build record, new random salt
+  L->>DB: save record + salt FIRST
+  L->>B: record(refId, leaf)
+  B->>C: entries(refId)? (free read)
+  alt not on chain yet
+    B->>C: record(refId, leaf) signed by listener key
+    C-->>B: stored with block time
+  else already there, same leaf
+    B-->>L: "exists" (webhook retry, nothing sent)
+  end
+  L->>DB: save chain tx hash
+</pre>
+  </div>
+  <p>The salt is saved <b>before</b> the chain write. If we lost the salt after stamping, the fingerprint on chain could never be checked again.</p>
+
+  <h3>B. Loading the history (planned: waits for Dong's file)</h3>
+  <ol class="steps">
+    <li>Read the cleaned file, one row per transaction, and build records with <code>records.py</code>.</li>
+    <li>Group rows by day; give each a salt; compute leaves and the day's Merkle root.</li>
+    <li>Save every record + salt + its day in <code>ledger_records</code>.</li>
+    <li>Send one <code>anchorBatch(day, root, count)</code> per day.</li>
+  </ol>
+
+  <h3>C. Someone checks a record (built)</h3>
+  <div class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+  participant U as User
+  participant V as POST /verify
+  participant C as Contract
+  U->>V: record + salt
+  V->>V: rebuild leaf, compute refId
+  V->>C: entries(refId)
+  C-->>V: stored leaf + block time
+  V-->>U: match true/false, block time
+</pre>
+  </div>
+  <p>Three possible answers: <b>match</b> (unchanged since the block time), <b>found but no match</b> (the record or salt was altered), or <b>not found</b> (never stamped).</p>
+
+  <h3>D. A staff member reads records (built)</h3>
+  <ol class="steps">
+    <li>They call <code>GET /api/ledger/records</code> with their login token.</li>
+    <li>The app looks up their department. Money in needs the label <code>bank_transaction</code>; money out needs <code>disbursement</code>. By default finance has both; admin and dev see everything; volunteer sees nothing until the admin changes the labels.</li>
+    <li>Allowed: they get the records with salts, so they can verify them independently. Refused: 403, or 404 for a single record so ids cannot be probed. Both are written to the audit log.</li>
+    <li>Optional <code>?check_chain=true</code> re-checks that record against the chain on the spot.</li>
+  </ol>
+</section>
+
+<section id="where">
+  <span class="eyebrow">8 · What lives where</span>
+  <h2>On chain vs in our database</h2>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Data</th><th>On chain (public, permanent)</th><th>Our database (permission-gated)</th></tr></thead>
+    <tbody>
+      <tr><td>Fingerprint (leaf)</td><td class="yes">yes</td><td class="yes">yes</td></tr>
+      <tr><td>refId (HMAC of bank id)</td><td class="yes">yes</td><td class="yes">yes</td></tr>
+      <tr><td>Block time</td><td class="yes">yes</td><td>tx hash kept</td></tr>
+      <tr><td>Amount, currency, bank time</td><td class="no">no</td><td class="yes">yes</td></tr>
+      <tr><td>Donor id / name, recipient id / type</td><td class="no">no</td><td class="yes">yes</td></tr>
+      <tr><td>In or out</td><td class="no">no</td><td class="yes">yes</td></tr>
+      <tr><td>Salt</td><td class="no">no</td><td class="yes">yes, must never be lost</td></tr>
+      <tr><td>Daily root + number of rows</td><td class="yes">yes</td><td>rows kept with their day</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>How we got here: three versions</h3>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Version</th><th>On chain</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>v1</td><td>hash only</td><td>retired (early prototype)</td></tr>
+      <tr><td>v2</td><td>hash + amount, currency, bank time, donor/recipient ids in plain text</td><td>retired 18 Nov; holds one test entry (amount 1, <code>TEST-DONOR</code>) that stays public forever</td></tr>
+      <tr><td>v3</td><td>hash only; readable data behind the app's permissions</td><td><b>live</b> since 18 Nov, client's decision</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="decisions">
+  <span class="eyebrow">9 · Decisions</span>
+  <h2>What we chose and why</h2>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Decision</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Hash everything on chain (client)</td><td>A public chain is permanent: anything readable posted there can never be taken back, including donors' details. Readable data stays where access can be controlled and revoked.</td></tr>
+      <tr><td>Reuse the AI part's permissions</td><td>One set of users, departments and labels for the whole system, managed by the admin, with one audit log. No second login system to secure.</td></tr>
+      <tr><td>Random salt per record</td><td>Stops guessing attacks on predictable records. Lets us hand out proof for one record without exposing others.</td></tr>
+      <tr><td>refId = HMAC of the bank id</td><td>Hides bank ids, gives a stable key, lets the contract refuse duplicates.</td></tr>
+      <tr><td>Write-once, no update or delete</td><td>The whole point. Corrections are new records that reference the old one, never edits.</td></tr>
+      <tr><td>One transaction per live record, one root per history day</td><td>Live records can be checked one by one immediately; history is cheap to stamp in bulk.</td></tr>
+      <tr><td>The listener is the only writer (<code>RECORDER_ROLE</code>)</td><td>Limits who can stamp. If its key leaks, the admin pauses the contract and revokes the role. Two-person approval (multisig) is planned later.</td></tr>
+      <tr><td>Bank time kept apart from block time</td><td>Bank time is what the bank says (inside the hashed record). Block time is what the chain proves.</td></tr>
+      <tr><td>Base Sepolia test network</td><td>Free, same technology as the real Base network. Moving to main network later is a redeploy, not a rewrite.</td></tr>
+      <tr><td>Public verify stays open</td><td>It only confirms data the caller already has, so it reveals nothing new.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="limits">
+  <span class="eyebrow">10 · Limits</span>
+  <h2>What the system cannot do</h2>
+  <ul style="margin:0;padding-left:20px;display:grid;gap:8px">
+    <li><b>It cannot prove truth.</b> We trust the listener to report what the bank said. A wrong record stamped is a wrong record protected.</li>
+    <li><b>It cannot prove completeness of live records.</b> A record never stamped is simply absent. The bank's own statement is the cross-check.</li>
+    <li><b>It cannot bring data back.</b> The chain holds fingerprints, not records. Lose the database or the salts and the proof is gone. Back them up.</li>
+    <li><b>The daily count is visible.</b> Anyone can see how many history rows a day had. Pending client confirmation.</li>
+    <li><b>The v2 test entry is permanent.</b> Harmless test data, but a reminder that nothing on chain can be deleted.</li>
+  </ul>
+</section>
+
+<section id="live">
+  <span class="eyebrow">11 · Live facts</span>
+  <h2>What is deployed right now</h2>
+  <dl class="facts">
+    <dt>Network</dt><dd>Base Sepolia (chain id 84532)</dd>
+    <dt>Contract v3</dt><dd><a href="https://sepolia.basescan.org/address/0x444cbfb6224B5a9cB8bE25c2BAa4AC646a446244" rel="noopener">0x444cbfb6224B5a9cB8bE25c2BAa4AC646a446244</a></dd>
+    <dt>Admin / deployer</dt><dd>0x56F42f7639DC03b30554F1116eD007E59f4639C3</dd>
+    <dt>Listener (recorder)</dt><dd>0xC16e7dFd7e4B18c1db0859D1Ada9416EF0c8BEe7</dd>
+    <dt>Smoke test record</dt><dd><a href="https://sepolia.basescan.org/tx/0xc5b2fb1f4a34db46784506e9cdd530021a18fb64eeb2e9dd6f6849a475c9fcbb" rel="noopener">TEST-SMOKE-0002 tx</a> · retry "exists" · verify true · tampered false</dd>
+    <dt>Retired v2</dt><dd>0xC20ae8E6DEF7bF9eE347aa3Fa4213960bFA4fdf3</dd>
+  </dl>
+  <p style="color:var(--muted);font-size:.93rem">Open the smoke test link: the explorer shows only two 32-byte values (refId and leaf). That is all the public can see.</p>
+</section>
+
+<section id="quiz">
+  <span class="eyebrow">12 · Check yourself</span>
+  <h2>Six questions</h2>
+  <div>
+    <details><summary>The chain says "match". Does that mean the donation really happened?</summary><p>No. It means the record is unchanged since the block time. Whether the money really moved is checked against the bank statement.</p></details>
+    <details><summary>Why can't we just hash the record without a salt?</summary><p>Records are guessable. Someone could hash likely records and compare with the chain to learn amounts and donors. The random salt makes guessing impossible.</p></details>
+    <details><summary>What happens if the webhook sends the same transfer twice?</summary><p>Same bank id, so same refId. The bridge sees it is already on chain with the same leaf and returns "exists" without sending anything.</p></details>
+    <details><summary>A volunteer asks for donor names. What do they get?</summary><p>Nothing, by default: money-in records need the <code>bank_transaction</code> label, which only finance has. The refusal is logged. The admin can change labels.</p></details>
+    <details><summary>We lose the database. Can we rebuild records from the chain?</summary><p>No. The chain holds only fingerprints. That is why the database and salts must be backed up.</p></details>
+    <details><summary>Why do history days use a Merkle root instead of one transaction per row?</summary><p>Cost. One root per day covers any number of rows in one transaction, and each row can still be proven with a short list of neighbour hashes.</p></details>
+  </div>
+</section>
+</main>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const ids = ["f-id", "f-amount", "f-donor", "f-name", "f-time", "f-salt"];
+  const defaults = Object.fromEntries(ids.map((i) => [i, $(i).value]));
+  let stamped = null;
+
+  function canonical(o) {
+    const s = {};
+    for (const k of Object.keys(o).sort()) s[k] = o[k];
+    return JSON.stringify(s);
+  }
+  function record() {
+    const amt = $("f-amount").value.trim();
+    return {
+      id: $("f-id").value.trim(), direction: "in",
+      amount: /^\d+$/.test(amt) ? Number(amt) : amt,
+      currency: "VND", donor_id: $("f-donor").value.trim(),
+      donor_name: $("f-name").value.trim() || "Anonymous", time: $("f-time").value.trim(),
+    };
+  }
+  async function leaf(rec, saltHex) {
+    const clean = saltHex.trim().replace(/^0x/, "");
+    if (!/^([0-9a-fA-F]{2})+$/.test(clean)) throw new Error("salt must be hex");
+    const salt = Uint8Array.from(clean.match(/../g).map((h) => parseInt(h, 16)));
+    const body = new TextEncoder().encode(canonical(rec));
+    const buf = new Uint8Array(1 + salt.length + body.length);
+    buf[0] = 0; buf.set(salt, 1); buf.set(body, 1 + salt.length);
+    const d = await crypto.subtle.digest("SHA-256", buf);
+    return Array.from(new Uint8Array(d), (b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  async function update() {
+    const rec = record();
+    $("o-canon").textContent = canonical(rec);
+    let h;
+    try { h = await leaf(rec, $("f-salt").value); }
+    catch (e) { $("o-leaf").textContent = e.message; setVerdict("bad", "The salt must be hex characters (0-9, a-f), an even number of them."); return; }
+    $("o-leaf").textContent = "0x" + h;
+    if (!stamped) { setVerdict("idle", "Stamp the record first."); return; }
+    if (h === stamped) setVerdict("ok", "Match: this record is exactly what was stamped.");
+    else setVerdict("bad", "No match: the record or the salt differs from what was stamped. The chain detects the change.");
+  }
+  function setVerdict(kind, text) { const v = $("o-verdict"); v.className = "verdict " + kind; v.textContent = text; }
+
+  if (!(window.crypto && crypto.subtle)) {
+    $("o-leaf").textContent = "This browser does not allow hashing here.";
+    return;
+  }
+  ids.forEach((i) => $(i).addEventListener("input", update));
+  $("b-stamp").addEventListener("click", async () => {
+    try { stamped = await leaf(record(), $("f-salt").value); } catch (e) { return; }
+    $("o-chain").textContent = "refId → 0x" + stamped + "  (plus block time)";
+    update();
+  });
+  $("b-salt").addEventListener("click", () => {
+    const b = crypto.getRandomValues(new Uint8Array(16));
+    $("f-salt").value = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+    update();
+  });
+  $("b-reset").addEventListener("click", () => {
+    ids.forEach((i) => ($(i).value = defaults[i]));
+    stamped = null; $("o-chain").textContent = "nothing yet"; update();
+  });
+  update();
+})();
+</script>
