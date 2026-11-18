@@ -9,14 +9,14 @@ SECRET = b"test-secret"
 
 
 class FakeLedger:
-    """Mirrors the contract rules: refId write-once, day write-once, no zero values."""
+    """Mirrors the v3 contract rules: refId write-once, day write-once, hash only."""
 
     def __init__(self):
         self.entries, self.batches, self.sent, self.payloads, self.t = {}, {}, [], [], 1_700_000_000
 
     def call(self, name, *args):
         if name == "entries":
-            return self.entries.get(args[0], (b"\x00" * 32, 0, 0, 0, 0))
+            return self.entries.get(args[0], (b"\x00" * 32, 0))
         if name == "batches":
             return self.batches.get(args[0], (b"\x00" * 32, 0, 0))
         raise AssertionError(name)
@@ -24,17 +24,19 @@ class FakeLedger:
     def send(self, name, *args):
         self.t += 2
         self.sent.append(name)
-        if name in ("recordIncome", "recordExpense"):
-            ref, leaf, data = args
+        self.payloads.append(args)
+        if name == "record":
+            ref, leaf = args
             if ref in self.entries:
                 raise RuntimeError("AlreadyRecorded")
-            self.payloads.append(data)
-            self.entries[ref] = (leaf, data[0], data[1], self.t, 1 if name == "recordIncome" else 2)
+            self.entries[ref] = (leaf, self.t)
         elif name == "anchorBatch":
             day, root, count = args
             if day in self.batches:
                 raise RuntimeError("DayAlreadyAnchored")
             self.batches[day] = (root, count, self.t)
+        else:
+            raise AssertionError(name)
         return {"tx_hash": "0x%064x" % len(self.sent), "block": len(self.sent)}
 
 
@@ -71,56 +73,46 @@ def test_record_then_verify(fake):
     c = chain.LedgerClient(fake)
     r, salt, leaf = _rec()
     ref = chain.ref_id(SECRET, r["id"])
-    assert c.record(r, ref, leaf).status == "sent"
+    assert c.record(ref, leaf).status == "sent"
     ok, ts = c.verify(ref, merkle.leaf_hash(r, salt))
     assert ok and ts
-    e = c.entry(ref)
-    assert e["amount"] == 500_000 and e["tx_time"] == chain.unix_time(T) and e["direction"] == "in"
+    assert c.entry(ref) == {"leaf": leaf, "recorded_at": ts}
 
 
-def test_income_public_fields_hide_name_by_default(fake):
+def test_only_hashes_reach_the_chain(fake):
     c = chain.LedgerClient(fake)
-    r, _, leaf = _rec()
-    c.record(r, chain.ref_id(SECRET, "a"), leaf)
-    assert fake.payloads[-1] == (500_000, chain.unix_time(T), "VND", "D-001", "")
-    c.record(r, chain.ref_id(SECRET, "b"), leaf, publish_names=True)
-    assert fake.payloads[-1][-1] == "Lan"
-
-
-def test_expense_public_fields(fake):
-    c = chain.LedgerClient(fake)
-    r, _, leaf = _rec("out", 200_000)
-    c.record(r, chain.ref_id(SECRET, r["id"]), leaf)
-    assert fake.sent == ["recordExpense"]
-    assert fake.payloads[-1] == (200_000, chain.unix_time(T), "VND", "R-017", "unassigned")
+    for direction in ("in", "out"):
+        r, _, leaf = _rec(direction)
+        c.record(chain.ref_id(SECRET, direction), leaf)
+    for args in fake.payloads:
+        assert all(isinstance(a, bytes) and len(a) == 32 for a in args)
+    assert fake.sent == ["record", "record"]
 
 
 def test_retry_does_not_send_twice(fake):
     c = chain.LedgerClient(fake)
-    r, _, leaf = _rec("out")
+    _, _, leaf = _rec("out")
     ref = chain.ref_id(SECRET, "BANK-1")
-    c.record(r, ref, leaf)
-    assert c.record(r, ref, leaf).status == "exists"
-    assert fake.sent == ["recordExpense"]
+    c.record(ref, leaf)
+    assert c.record(ref, leaf).status == "exists"
+    assert fake.sent == ["record"]
 
 
 def test_same_ref_different_leaf_is_a_conflict(fake):
     c = chain.LedgerClient(fake)
-    r_in, _, _ = _rec("in")
-    r_out, _, _ = _rec("out")
+    _, _, leaf_in = _rec("in")
+    _, _, leaf_out = _rec("out")
     ref = chain.ref_id(SECRET, "BANK-1")
-    c.record(r_in, ref, b"" * 32)
+    c.record(ref, leaf_in)
     with pytest.raises(chain.ConflictError):
-        c.record(r_in, ref, b"" * 32)
-    with pytest.raises(chain.ConflictError):
-        c.record(r_out, ref, b"" * 32)
+        c.record(ref, leaf_out)
 
 
 def test_tampered_record_fails_verify(fake):
     c = chain.LedgerClient(fake)
     r, salt, leaf = _rec()
     ref = chain.ref_id(SECRET, r["id"])
-    c.record(r, ref, leaf)
+    c.record(ref, leaf)
     r["amount"] += 1000
     assert c.verify(ref, merkle.leaf_hash(r, salt)) == (False, None)
     assert c.verify(chain.ref_id(SECRET, "unknown"), leaf) == (False, None)
@@ -128,11 +120,8 @@ def test_tampered_record_fails_verify(fake):
 
 def test_bad_inputs_rejected(fake):
     c = chain.LedgerClient(fake)
-    r, _, _ = _rec()
     with pytest.raises(ValueError):
-        c.record({**r, "direction": "sideways"}, b"" * 32, b"" * 32)
-    with pytest.raises(ValueError):
-        c.record(r, b"" * 31, b"" * 32)
+        c.record(b"\x01" * 31, b"\x01" * 32)
     with pytest.raises(ValueError):
         chain.unix_time("2026-11-16T09:30:00")
 

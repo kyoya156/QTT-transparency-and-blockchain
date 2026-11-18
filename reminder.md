@@ -7,7 +7,9 @@ Last updated: 2026-11-18. Task details live in `docs/STATE.md` ("Next").
 - [x] Send the listener wallet about 0.0001 Base Sepolia test ETH.
 - [x] Python bridge `transparency/chain.py` (code + fake-contract tests).
 - [x] Deploy contract v2 (`0xC20ae8E6DEF7bF9eE347aa3Fa4213960bFA4fdf3`) and update `CONTRACT_ADDRESS` in `chain/.env`.
-- [ ] Settle with the client whether donor names go on chain (needs donor consent).
+- [x] Settle with the client what goes on chain: hash everything (2026-11-18). Readable data only via the app's department permissions.
+- [ ] Deploy contract v3 (hash only) and update `CONTRACT_ADDRESS`; re-run the smoke test. Steps in STATE "Next" 0.
+- [ ] Ask the client if the per-day transaction count on chain is fine.
 - [x] Add `LISTENER_KEY` and `REFID_SECRET` to `chain/.env`; live test record + anchor passed.
 - [x] Verify endpoint (`transparency/api.py`).
 - [ ] Webhook listener.
@@ -19,7 +21,7 @@ Builds a second blockchain version in parallel, so the team can still submit if 
 - [ ] Agree to delete `vh-branch` on GitHub (already inside `main`).
 - [ ] Keep the backup on its own branch so the two lines do not overwrite each other.
 - [ ] Use the same cleaned dataset from Dong, so either version can be demoed with the same data.
-- [ ] Use the same record fields (`transparency/records.py`): in = amount + donor name + donor ID + bank time; out = amount + recipient ID + recipient type + bank time. Names stay off chain for now.
+- [ ] Use the same record fields (`transparency/records.py`): in = amount + donor name + donor ID + bank time; out = amount + recipient ID + recipient type + bank time. Client decision: only hashes go on chain, nothing readable.
 
 ## Dong: dataset
 - [ ] Download a transactions dataset from Kaggle (CSV or XLSX).
@@ -29,8 +31,8 @@ Builds a second blockchain version in parallel, so the team can still submit if 
 - [ ] Keep the raw data out of git (`data/` is git-ignored). Note the Kaggle link and licence.
 
 ## Tuan: dashboard / frontend UI/UX
-- [ ] Design and build the dashboard: income and expense views, transaction list. Skip test entries (`TEST-` donor/recipient IDs, day 19000101).
-- [ ] Verify screen: user gives a record, the page shows whether it matches the chain and its block time.
+- [ ] Design and build the dashboard: income and expense views, transaction list. Data comes from `GET /api/ledger/records` (login token; what each department sees follows the admin's labels), not from the chain: the chain holds only hashes. Skip test entries (`TEST-` IDs, day 19000101).
+- [ ] Verify screen: user gives a record + salt (`POST /verify`), or a logged-in user opens `GET /api/ledger/records/{id}?check_chain=true`; show match and block time.
 - [ ] Wording: the chain shows a record existed unchanged at a block time. It does not prove the record is true.
 - [ ] Use Dong's cleaned data for mock screens until the backend is ready.
 

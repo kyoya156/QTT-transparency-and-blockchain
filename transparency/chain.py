@@ -1,7 +1,7 @@
 """Bridge from Python to the TransparencyLedger contract on Base Sepolia.
 
-The chain stores the salted hash of each record plus its non-sensitive fields in plain text
-(amount, currency, bank time, donor ID / recipient ID + type). Donor names stay off chain for now.
+Contract v3 stores only the salted hash of each record (client decision 2026-11-18: hash everything).
+The readable record and its salt stay in our database, behind the app's department permissions.
 It proves a record existed unchanged at a block time.
 It does not prove the record is true.
 
@@ -28,7 +28,6 @@ ENV_FILE = ROOT / "chain" / ".env"
 ABI = json.loads((pathlib.Path(__file__).with_name("abi.json")).read_text(encoding="utf-8"))
 DEFAULT_RPC = "https://sepolia.base.org"
 CHAIN_ID = 84532
-DIRECTIONS = {0: None, 1: "in", 2: "out"}
 ENV_KEYS = ("LISTENER_KEY", "CONTRACT_ADDRESS", "BASE_SEPOLIA_RPC", "REFID_SECRET")
 
 
@@ -83,7 +82,7 @@ class RecordResult:
 
 
 class ConflictError(RuntimeError):
-    """refId already on chain with a different leaf or direction. Never overwrite; investigate."""
+    """refId already on chain with a different leaf. Never overwrite; investigate."""
 
 
 class LedgerClient:
@@ -93,34 +92,20 @@ class LedgerClient:
         self.backend = backend
 
     def entry(self, ref: bytes) -> dict | None:
-        leaf, amount, tx_time, recorded_at, direction = self.backend.call("entries", _b32(ref))
-        if direction == 0:
+        leaf, recorded_at = self.backend.call("entries", _b32(ref))
+        if int(recorded_at) == 0:
             return None
-        return {"leaf": bytes(leaf), "amount": int(amount), "tx_time": int(tx_time),
-                "recorded_at": int(recorded_at), "direction": DIRECTIONS[int(direction)]}
+        return {"leaf": bytes(leaf), "recorded_at": int(recorded_at)}
 
-    def record(self, rec: dict, ref: bytes, leaf: bytes, publish_names: bool = False) -> RecordResult:
-        """Send one records.income/expense dict. Idempotent: a retry with the same leaf returns 'exists'.
-
-        Public on chain: amount, currency, bank time, donor ID or recipient ID + type.
-        Donor name only when publish_names=True (off until the client approves names on chain).
-        """
-        direction = rec.get("direction")
-        if direction not in ("in", "out"):
-            raise ValueError("direction must be 'in' or 'out'")
+    def record(self, ref: bytes, leaf: bytes) -> RecordResult:
+        """Send one leaf. Idempotent: a retry with the same leaf returns 'exists'. Nothing readable goes on chain."""
         ref, leaf = _b32(ref), _b32(leaf)
         existing = self.entry(ref)
         if existing:
-            if existing["leaf"] != leaf or existing["direction"] != direction:
-                raise ConflictError(f"refId 0x{ref.hex()} already recorded with different data")
+            if existing["leaf"] != leaf:
+                raise ConflictError(f"refId 0x{ref.hex()} already recorded with a different leaf")
             return RecordResult("exists", None, existing["recorded_at"])
-        base = (int(rec["amount"]), unix_time(rec["time"]), rec["currency"])
-        if direction == "in":
-            name = rec.get("donor_name", "") if publish_names else ""
-            receipt = self.backend.send("recordIncome", ref, leaf, (*base, rec["donor_id"], name))
-        else:
-            receipt = self.backend.send("recordExpense", ref, leaf,
-                                        (*base, rec["recipient_id"], rec.get("recipient_type") or "unassigned"))
+        receipt = self.backend.send("record", ref, leaf)
         return RecordResult("sent", receipt["tx_hash"])
 
     def verify(self, ref: bytes, leaf: bytes) -> tuple[bool, int | None]:

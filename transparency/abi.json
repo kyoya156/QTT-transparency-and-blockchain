@@ -97,104 +97,6 @@
   "anonymous": false,
   "inputs": [
    {
-    "indexed": true,
-    "internalType": "bytes32",
-    "name": "refId",
-    "type": "bytes32"
-   },
-   {
-    "indexed": false,
-    "internalType": "bytes32",
-    "name": "leaf",
-    "type": "bytes32"
-   },
-   {
-    "indexed": false,
-    "internalType": "uint128",
-    "name": "amount",
-    "type": "uint128"
-   },
-   {
-    "indexed": false,
-    "internalType": "string",
-    "name": "currency",
-    "type": "string"
-   },
-   {
-    "indexed": false,
-    "internalType": "uint64",
-    "name": "txTime",
-    "type": "uint64"
-   },
-   {
-    "indexed": false,
-    "internalType": "string",
-    "name": "recipientId",
-    "type": "string"
-   },
-   {
-    "indexed": false,
-    "internalType": "string",
-    "name": "recipientType",
-    "type": "string"
-   }
-  ],
-  "name": "Expense",
-  "type": "event"
- },
- {
-  "anonymous": false,
-  "inputs": [
-   {
-    "indexed": true,
-    "internalType": "bytes32",
-    "name": "refId",
-    "type": "bytes32"
-   },
-   {
-    "indexed": false,
-    "internalType": "bytes32",
-    "name": "leaf",
-    "type": "bytes32"
-   },
-   {
-    "indexed": false,
-    "internalType": "uint128",
-    "name": "amount",
-    "type": "uint128"
-   },
-   {
-    "indexed": false,
-    "internalType": "string",
-    "name": "currency",
-    "type": "string"
-   },
-   {
-    "indexed": false,
-    "internalType": "uint64",
-    "name": "txTime",
-    "type": "uint64"
-   },
-   {
-    "indexed": false,
-    "internalType": "string",
-    "name": "donorId",
-    "type": "string"
-   },
-   {
-    "indexed": false,
-    "internalType": "string",
-    "name": "donorName",
-    "type": "string"
-   }
-  ],
-  "name": "Income",
-  "type": "event"
- },
- {
-  "anonymous": false,
-  "inputs": [
-   {
     "indexed": false,
     "internalType": "address",
     "name": "account",
@@ -202,6 +104,25 @@
    }
   ],
   "name": "Paused",
+  "type": "event"
+ },
+ {
+  "anonymous": false,
+  "inputs": [
+   {
+    "indexed": true,
+    "internalType": "bytes32",
+    "name": "refId",
+    "type": "bytes32"
+   },
+   {
+    "indexed": false,
+    "internalType": "bytes32",
+    "name": "leaf",
+    "type": "bytes32"
+   }
+  ],
+  "name": "Recorded",
   "type": "event"
  },
  {
@@ -386,24 +307,9 @@
     "type": "bytes32"
    },
    {
-    "internalType": "uint128",
-    "name": "amount",
-    "type": "uint128"
-   },
-   {
-    "internalType": "uint64",
-    "name": "txTime",
-    "type": "uint64"
-   },
-   {
     "internalType": "uint64",
     "name": "recordedAt",
     "type": "uint64"
-   },
-   {
-    "internalType": "enum TransparencyLedger.Direction",
-    "name": "direction",
-    "type": "uint8"
    }
   ],
   "stateMutability": "view",
@@ -501,91 +407,9 @@
     "internalType": "bytes32",
     "name": "leaf",
     "type": "bytes32"
-   },
-   {
-    "components": [
-     {
-      "internalType": "uint128",
-      "name": "amount",
-      "type": "uint128"
-     },
-     {
-      "internalType": "uint64",
-      "name": "txTime",
-      "type": "uint64"
-     },
-     {
-      "internalType": "string",
-      "name": "currency",
-      "type": "string"
-     },
-     {
-      "internalType": "string",
-      "name": "recipientId",
-      "type": "string"
-     },
-     {
-      "internalType": "string",
-      "name": "recipientType",
-      "type": "string"
-     }
-    ],
-    "internalType": "struct TransparencyLedger.ExpenseData",
-    "name": "d",
-    "type": "tuple"
    }
   ],
-  "name": "recordExpense",
-  "outputs": [],
-  "stateMutability": "nonpayable",
-  "type": "function"
- },
- {
-  "inputs": [
-   {
-    "internalType": "bytes32",
-    "name": "refId",
-    "type": "bytes32"
-   },
-   {
-    "internalType": "bytes32",
-    "name": "leaf",
-    "type": "bytes32"
-   },
-   {
-    "components": [
-     {
-      "internalType": "uint128",
-      "name": "amount",
-      "type": "uint128"
-     },
-     {
-      "internalType": "uint64",
-      "name": "txTime",
-      "type": "uint64"
-     },
-     {
-      "internalType": "string",
-      "name": "currency",
-      "type": "string"
-     },
-     {
-      "internalType": "string",
-      "name": "donorId",
-      "type": "string"
-     },
-     {
-      "internalType": "string",
-      "name": "donorName",
-      "type": "string"
-     }
-    ],
-    "internalType": "struct TransparencyLedger.IncomeData",
-    "name": "d",
-    "type": "tuple"
-   }
-  ],
-  "name": "recordIncome",
+  "name": "record",
   "outputs": [],
   "stateMutability": "nonpayable",
   "type": "function"

@@ -4,41 +4,20 @@ pragma solidity ^0.8.24;
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 
-/// @title TransparencyLedger (v2)
-/// @notice Append-only record of money in, money out and daily batch roots.
-/// v2 publishes the non-sensitive fields in plain text (amount, currency, bank time, donor ID,
-/// recipient ID and type) next to the salted hash (`leaf`) of the full record.
-/// `donorName` is an optional slot: the listener sends "" until the client decides names may be public.
-/// Anything written here is public and permanent. Recipient IDs must be codes, never people's names.
+/// @title TransparencyLedger (v3, hash only)
+/// @notice Append-only record of salted hashes. Client decision (2026-11-18): nothing readable on chain.
+/// Each transaction is stored as `refId -> leaf`, each starting-history day as one Merkle root.
+/// refId  = HMAC of the bank's transaction id (hides it, dedupes retries).
+/// leaf   = SHA-256 of salt + full record (amount, IDs, names, times, direction). The record and salt stay
+///          off chain; who may read them is decided by the app's department permissions.
 /// It proves a record existed unchanged at a block time. It does not prove the record is true:
 /// the recorder (the listener service) is trusted to report what the bank feed said.
 contract TransparencyLedger is AccessControl, Pausable {
     bytes32 public constant RECORDER_ROLE = keccak256("RECORDER_ROLE");
 
-    enum Direction { None, In, Out }
-
     struct Entry {
-        bytes32 leaf;       // salted hash of the full record, kept off-chain
-        uint128 amount;     // smallest currency unit, e.g. VND
-        uint64 txTime;      // bank time of the transaction (unix seconds)
+        bytes32 leaf;
         uint64 recordedAt;  // block timestamp
-        Direction direction;
-    }
-
-    struct IncomeData {
-        uint128 amount;
-        uint64 txTime;
-        string currency;
-        string donorId;
-        string donorName;   // "" until names are approved for publication
-    }
-
-    struct ExpenseData {
-        uint128 amount;
-        uint64 txTime;
-        string currency;
-        string recipientId;
-        string recipientType; // e.g. "child", "supplier"; "unassigned" until decided
     }
 
     struct Batch {
@@ -47,15 +26,11 @@ contract TransparencyLedger is AccessControl, Pausable {
         uint64 recordedAt;
     }
 
-    /// refId = HMAC of the bank's transaction id. Dedupes webhook retries on-chain.
     mapping(bytes32 => Entry) public entries;
     /// day as yyyymmdd, e.g. 20261117
     mapping(uint32 => Batch) public batches;
 
-    event Income(bytes32 indexed refId, bytes32 leaf, uint128 amount, string currency, uint64 txTime,
-                 string donorId, string donorName);
-    event Expense(bytes32 indexed refId, bytes32 leaf, uint128 amount, string currency, uint64 txTime,
-                  string recipientId, string recipientType);
+    event Recorded(bytes32 indexed refId, bytes32 leaf);
     event BatchAnchored(uint32 indexed day, bytes32 root, uint32 count);
 
     error AlreadyRecorded(bytes32 refId);
@@ -66,20 +41,12 @@ contract TransparencyLedger is AccessControl, Pausable {
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
     }
 
-    function recordIncome(bytes32 refId, bytes32 leaf, IncomeData calldata d)
-        external onlyRole(RECORDER_ROLE) whenNotPaused
-    {
-        if (bytes(d.donorId).length == 0) revert EmptyValue();
-        _record(refId, leaf, d.amount, d.txTime, bytes(d.currency).length, Direction.In);
-        emit Income(refId, leaf, d.amount, d.currency, d.txTime, d.donorId, d.donorName);
-    }
-
-    function recordExpense(bytes32 refId, bytes32 leaf, ExpenseData calldata d)
-        external onlyRole(RECORDER_ROLE) whenNotPaused
-    {
-        if (bytes(d.recipientId).length == 0) revert EmptyValue();
-        _record(refId, leaf, d.amount, d.txTime, bytes(d.currency).length, Direction.Out);
-        emit Expense(refId, leaf, d.amount, d.currency, d.txTime, d.recipientId, d.recipientType);
+    /// @notice Record one transaction's salted hash. A refId can be written once.
+    function record(bytes32 refId, bytes32 leaf) external onlyRole(RECORDER_ROLE) whenNotPaused {
+        if (refId == bytes32(0) || leaf == bytes32(0)) revert EmptyValue();
+        if (entries[refId].recordedAt != 0) revert AlreadyRecorded(refId);
+        entries[refId] = Entry(leaf, uint64(block.timestamp));
+        emit Recorded(refId, leaf);
     }
 
     /// @notice Anchor the Merkle root of a whole day, used for the starting history.
@@ -93,20 +60,10 @@ contract TransparencyLedger is AccessControl, Pausable {
     /// @notice True when this exact leaf was recorded under refId.
     function verify(bytes32 refId, bytes32 leaf) external view returns (bool) {
         Entry memory e = entries[refId];
-        return e.direction != Direction.None && e.leaf == leaf;
+        return e.recordedAt != 0 && e.leaf == leaf;
     }
 
     /// @notice Stop all recording, for example if the recorder key leaks. Reading still works.
     function pause() external onlyRole(DEFAULT_ADMIN_ROLE) { _pause(); }
     function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) { _unpause(); }
-
-    function _record(bytes32 refId, bytes32 leaf, uint128 amount, uint64 txTime, uint256 currencyLen, Direction d)
-        private
-    {
-        if (refId == bytes32(0) || leaf == bytes32(0) || amount == 0 || txTime == 0 || currencyLen == 0) {
-            revert EmptyValue();
-        }
-        if (entries[refId].direction != Direction.None) revert AlreadyRecorded(refId);
-        entries[refId] = Entry(leaf, amount, txTime, uint64(block.timestamp), d);
-    }
 }

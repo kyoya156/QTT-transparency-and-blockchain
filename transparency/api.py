@@ -4,6 +4,8 @@
     POST /verify  {"record": {...exact stored record...}, "salt": "<hex>"}
 
 A match proves the record existed unchanged at the block time. It does not prove the record is true.
+The chain holds only hashes; this endpoint returns nothing the caller did not send. Reading records
+(with their salts) goes through the app's permissions: app/api/ledger.py.
 Read-only: needs CONTRACT_ADDRESS and REFID_SECRET (chain/.env), never LISTENER_KEY.
 Allowed browser origins for the dashboard: VERIFY_CORS_ORIGINS (comma separated), default none.
 """
@@ -79,17 +81,11 @@ def verify(body: VerifyIn, ledger: tuple = Depends(get_ledger)) -> dict:
     except Exception as exc:  # RPC down, timeout
         raise HTTPException(503, f"chain unreachable: {type(exc).__name__}") from None
     match = entry is not None and entry["leaf"] == leaf
-    on_chain = None if entry is None else {
-        "direction": entry["direction"],
-        "amount": entry["amount"],
-        "bank_time": _iso(entry["tx_time"]),
-    }
     return {
         "match": match,
         "found": entry is not None,   # found but no match = record or salt was changed
         "block_time": _iso(entry["recorded_at"]) if match else None,
         "block_timestamp": entry["recorded_at"] if match else None,
-        "on_chain": on_chain,
         "leaf": "0x" + leaf.hex(),
         "ref_id": "0x" + ref.hex(),
         "note": NOTE,

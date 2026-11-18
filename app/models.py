@@ -154,3 +154,22 @@ class CorrectionTicket(Base):
     applied_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     applied_value: Mapped[str | None] = mapped_column(Text(), nullable=True)
     apply_note: Mapped[str | None] = mapped_column(Text(), nullable=True)
+
+
+class LedgerRecord(Base):
+    """Readable transparency record + salt. The chain holds only the salted hash (leaf).
+
+    record_json is the exact canonical bytes that were hashed (merkle.canonical), so re-hashing always matches.
+    Who may read: income -> table label 'bank_transaction', expense -> 'disbursement' (access.can_read_table).
+    """
+    __tablename__ = "ledger_records"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_tx_id: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    direction: Mapped[str] = mapped_column(String(8), index=True)              # in | out
+    record_json: Mapped[str] = mapped_column(Text())
+    salt: Mapped[str] = mapped_column(String(128))                              # hex; must never be lost
+    ref_id: Mapped[str] = mapped_column(String(66), unique=True)                # 0x + 64 hex
+    leaf: Mapped[str] = mapped_column(String(66))
+    chain_tx: Mapped[str | None] = mapped_column(String(66), nullable=True)     # record() tx, None until sent
+    anchor_day: Mapped[str | None] = mapped_column(String(10), nullable=True)   # history rows: day root instead
+    created_at: Mapped[datetime.datetime] = _now()
