@@ -42,6 +42,7 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 4. Merge `verify-endpoint` into `main` once the owner has reviewed it.
 
 ## Decisions
+- Donor names (owner, 2026-11-18): full name as given, e.g. `Phạm Thanh Hùng`, or `Anonymous`. Off chain only (hash on chain), readable via `bank_transaction` label. Names are NFC-normalised and spaces collapsed so the same visible name always hashes the same; case and accents kept as given (bank feeds often send `PHAM THANH HUNG`). Open: donor consent wording for storing full names (Vietnam personal data rules, Decree 13/2023).
 - Record shape (owner, 2026-11-18), in `transparency/records.py`: money in = amount + currency + donor_name (`Anonymous` allowed) + donor_id + bank time; money out = amount + currency + recipient_id + recipient_type (`unassigned` until Dong's cleaned data decides) + bank time. Bank time is separate from block time.
 - Public vs hashed on chain (client, 2026-11-18, replaces the v2 choice): hash everything. On chain only refId (HMAC), leaf, block time, and per day root + count. Readable records only via the AI app's department permissions (table labels `bank_transaction` / `disbursement`), with audit. Public verify (`transparency/api.py`) stays open: it only confirms data the caller already has.
 - UNVERIFIED with client: whether the per-day `count` on chain is acceptable (it shows how many transactions a history day had). Drop it in v3 before deploy if not.
@@ -55,6 +56,7 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 - Where `REFID_SECRET` lives; encryption of stored records at rest.
 
 ## Log (newest first)
+- 2026-11-18 | Claude Code | full donor names: NFC + whitespace normalisation in records.py + test | transparency/records.py, tests/test_records.py, docs/STATE.md
 - 2026-11-18 | Claude Code | deployed v3 0x444c...6244, live smoke test passed, diagram updated for v3, explainer page | chain/deployments/*, chain/.env (local), docs/architecture.drawio, docs/explainer.html, docs/STATE.md, reminder.md
 - 2026-11-18 | Claude Code | client: hash all. Contract v3 hash-only + tests, ABI, bridge, verify endpoint trimmed, permission-gated readable records in the app (ledger_records, /api/ledger) + tests. v3 not deployed | chain/contracts/TransparencyLedger.sol, chain/test/TransparencyLedger.test.js, transparency/abi.json, transparency/chain.py, transparency/api.py, app/models.py, app/api/ledger.py, app/main.py, tests/test_chain_bridge.py, tests/test_verify_api.py, tests/test_ledger_api.py, docs/STATE.md
 - 2026-11-18 | Claude Code | architecture diagram (draw.io, built = solid, planned = dashed); official jgraph drawio skill installed at user level (~/.claude/skills/drawio) | docs/architecture.drawio, docs/STATE.md

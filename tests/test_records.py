@@ -37,3 +37,18 @@ def test_any_field_change_changes_the_leaf():
     base = merkle.leaf_hash(r, salt)
     for k, v in [("amount", 500_001), ("donor_name", "Lam"), ("donor_id", "D-002"), ("time", "2026-11-16T09:31:00+07:00")]:
         assert merkle.leaf_hash({**r, k: v}, salt) != base
+
+
+def test_vietnamese_full_name_hashes_the_same_in_any_unicode_form():
+    import unicodedata
+
+    from transparency import merkle
+    name = "Phạm Thanh Hùng"
+    nfc, nfd = unicodedata.normalize("NFC", name), unicodedata.normalize("NFD", name)
+    assert nfc != nfd                                    # different bytes, same look
+    a = records.income("BANK-1", 1, "D-001", T, donor_name=nfc)
+    b = records.income("BANK-1", 1, "D-001", T, donor_name="  " + nfd.replace(" ", "   ") + " ")
+    assert a == b and a["donor_name"] == name
+    assert merkle.leaf_hash(a, bytes(16)) == merkle.leaf_hash(b, bytes(16))
+    # case and accents are kept as given: the bank's "PHAM THANH HUNG" stays a different record
+    assert records.income("BANK-1", 1, "D-001", T, donor_name="PHAM THANH HUNG")["donor_name"] == "PHAM THANH HUNG"

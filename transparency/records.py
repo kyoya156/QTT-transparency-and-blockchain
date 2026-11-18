@@ -1,6 +1,6 @@
 """Record shape for one bank transaction (decided with the owner 2026-11-18).
 
-Money in : amount + donor name + donor ID + bank time
+Money in : amount + donor full name (or Anonymous) + donor ID + bank time
 Money out: amount + recipient ID + recipient type + bank time
 
 `time` is when the money moved (bank / dataset time). The chain adds its own block time separately.
@@ -10,6 +10,7 @@ The salted hash of the canonical record is the `leaf` sent to the chain (merkle.
 from __future__ import annotations
 
 import datetime
+import unicodedata
 
 ANONYMOUS = "Anonymous"
 UNASSIGNED = "unassigned"
@@ -28,8 +29,14 @@ def _amount(value: int) -> int:
     return value
 
 
+def _text(value: str | None) -> str:
+    """One byte form per visible text. Vietnamese accents can be stored precomposed or as separate marks;
+    without NFC the same-looking name would hash differently. Case and accents are kept as given."""
+    return " ".join(unicodedata.normalize("NFC", value or "").split())
+
+
 def _required(name: str, value: str) -> str:
-    value = (value or "").strip()
+    value = _text(value)
     if not value:
         raise ValueError(f"{name} is required")
     return value
@@ -43,7 +50,7 @@ def income(source_tx_id: str, amount: int, donor_id: str, time, donor_name: str 
         "amount": _amount(amount),
         "currency": _required("currency", currency).upper(),
         "donor_id": _required("donor_id", donor_id),
-        "donor_name": (donor_name or "").strip() or ANONYMOUS,
+        "donor_name": _text(donor_name) or ANONYMOUS,   # full name, e.g. "Phạm Thanh Hùng"
         "time": _time(time),
     }
 
@@ -56,6 +63,6 @@ def expense(source_tx_id: str, amount: int, recipient_id: str, time, recipient_t
         "amount": _amount(amount),
         "currency": _required("currency", currency).upper(),
         "recipient_id": _required("recipient_id", recipient_id),
-        "recipient_type": (recipient_type or "").strip().lower() or UNASSIGNED,
+        "recipient_type": _text(recipient_type).lower() or UNASSIGNED,
         "time": _time(time),
     }
