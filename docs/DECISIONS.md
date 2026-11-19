@@ -21,7 +21,7 @@ Anything still marked **OPEN** blocks later milestones.
 - **Database: Docker Compose, `pgvector/pgvector:pg17`, host port 5434.** Port
   5433 is already taken by the `qne-poc-db-1` container from the PoC; that
   container is left untouched.
-- **Build order: M1 -> M5 as written in PLAN.md.**
+- **Build order: M1 -> M5** (the public-chatbot plan, since removed with the scope change).
 - **Content for sync/eval: a JSON export from the crawler.** Until that export
   lands, `tests/fixtures/chunks_sample.json` (synthetic, clearly labelled) stands
   in so the pipeline can be tested.

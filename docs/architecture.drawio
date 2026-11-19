@@ -13,7 +13,7 @@
         <mxCell id="kaggle" parent="zA" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#ffffff;strokeColor=#999999;" value="&lt;b&gt;Kaggle history file&lt;/b&gt;&lt;br&gt;cleaned by Dong" vertex="1">
           <mxGeometry height="60" width="140" x="30" y="55" as="geometry" />
         </mxCell>
-        <mxCell id="webhook" parent="zA" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#ffffff;strokeColor=#999999;" value="&lt;b&gt;Bank webhook&lt;/b&gt;&lt;br&gt;payOS / SePay / Casso (open)" vertex="1">
+        <mxCell id="webhook" parent="zA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" value="&lt;b&gt;Bank webhook&lt;/b&gt;&lt;br&gt;SePay (tested with MB, in + out)" vertex="1">
           <mxGeometry height="60" width="140" x="30" y="170" as="geometry" />
         </mxCell>
         <mxCell id="zB" parent="1" style="swimlane;startSize=24;html=1;rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Off-chain backend (Python, our server)" vertex="1">
@@ -22,7 +22,7 @@
         <mxCell id="loader" parent="zB" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#ffffff;strokeColor=#999999;" value="&lt;b&gt;History loader&lt;/b&gt;&lt;br&gt;rows to records, one root per day" vertex="1">
           <mxGeometry height="60" width="150" x="30" y="55" as="geometry" />
         </mxCell>
-        <mxCell id="listener" parent="zB" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#ffffff;strokeColor=#999999;" value="&lt;b&gt;Webhook listener&lt;/b&gt;&lt;br&gt;check signature, dedupe tx id" vertex="1">
+        <mxCell id="listener" parent="zB" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" value="&lt;b&gt;Webhook listener&lt;/b&gt;&lt;br&gt;listener.py: check signature, dedupe tx id&lt;br&gt;(temporary record rules)" vertex="1">
           <mxGeometry height="60" width="150" x="30" y="170" as="geometry" />
         </mxCell>
         <mxCell id="cli" parent="zB" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" value="&lt;b&gt;scripts/transparency.py&lt;/b&gt;&lt;br&gt;batch / prove / verify&lt;br&gt;+ LocalAnchor (prototype)" vertex="1">
@@ -121,7 +121,7 @@
         <mxCell id="e1" edge="1" parent="1" source="kaggle" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;defaultLabelBackgroundColor=page;dashed=1;" target="loader" value="cleaned file">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e2" edge="1" parent="1" source="webhook" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;defaultLabelBackgroundColor=page;dashed=1;" target="listener" value="event">
+        <mxCell id="e2" edge="1" parent="1" source="webhook" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;defaultLabelBackgroundColor=page;" target="listener" value="event">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="e11" edge="1" parent="1" source="bridge" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;defaultLabelBackgroundColor=page;strokeWidth=2;startArrow=classic;" target="contract" value="writes: record(refId, leaf)&lt;br&gt;reads: entries / verify">

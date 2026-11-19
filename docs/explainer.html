@@ -104,7 +104,7 @@ details p { margin-top: 8px; color: var(--muted); }
 <header style="display:grid;gap:14px">
   <span class="eyebrow">COS40005 Project A · financial transparency</span>
   <h1>How the QTT ledger works</h1>
-  <p class="lede">A walk-through of the blockchain part of the project: the few ideas you need, what each piece of our code does, how money records move through it, and why each decision was made. State as of 18 Nov 2026, contract v3.</p>
+  <p class="lede">A walk-through of the blockchain part of the project: the few ideas you need, what each piece of our code does, how money records move through it, and why each decision was made. State as of 19 Nov 2026, contract v3.</p>
   <nav class="toc" aria-label="Sections">
     <a href="#idea">The idea</a><a href="#basics">Blockchain basics</a><a href="#hash">Hashes and salt</a>
     <a href="#refid">refId</a><a href="#merkle">Daily roots</a><a href="#arch">Architecture</a><a href="#flows">The flows</a>
@@ -200,11 +200,11 @@ flowchart BT
 flowchart LR
   subgraph SRC["Sources"]
     K["Kaggle history file (Dong)"]:::planned
-    W["Bank webhook (payOS / SePay / Casso)"]:::planned
+    W["Bank webhook (SePay; tested with MB)"]
   end
   subgraph SRV["Our server (Python)"]
     LD["History loader"]:::planned
-    LS["Webhook listener"]:::planned
+    LS["Webhook listener (temporary record rules)"]
     REC["records.py: record shape"]
     MK["merkle.py: leaf and daily root"]
     DB[("ledger_records: record + salt")]
@@ -240,6 +240,8 @@ flowchart LR
       <tr><td>Contract</td><td><code>chain/contracts/TransparencyLedger.sol</code></td><td>Stores refId to (leaf, block time) and day to (root, count). Only <code>RECORDER_ROLE</code> may write; nothing can be overwritten; admin can pause.</td></tr>
       <tr><td>Readable records</td><td><code>app/models.py</code> <code>LedgerRecord</code>, <code>app/api/ledger.py</code></td><td>Keeps each record with its salt. Serves them only to logged-in users whose department may read them, and logs every read.</td></tr>
       <tr><td>Permissions</td><td><code>app/access.py</code></td><td>From the AI part: users, departments (admin, dev, finance, volunteer), labels set by the admin, audit log.</td></tr>
+      <tr><td>Bank feed</td><td><code>transparency/sepay.py</code></td><td>Checks SePay's signature on each bank notification (money in and out) and reads it. Tested 19 Nov with an MB account: both directions arrive within about 15 s.</td></tr>
+      <tr><td>Listener</td><td><code>transparency/listener.py</code></td><td>Turns each notification into a record, adds a salt, saves both, then stamps the fingerprint on chain. Record rules are temporary until the team decides donor and recipient codes.</td></tr>
       <tr><td>Public verify</td><td><code>transparency/api.py</code></td><td>Anyone sends a record + salt and gets back "match" and the block time. Returns nothing they did not send.</td></tr>
       <tr><td>Hardhat</td><td><code>chain/</code></td><td>Tooling to compile, test and deploy the contract, and grant roles.</td></tr>
     </tbody>
@@ -251,11 +253,11 @@ flowchart LR
   <span class="eyebrow">7 · The flows</span>
   <h2>Four journeys a record takes</h2>
 
-  <h3>A. A live donation arrives (planned: listener not built yet)</h3>
+  <h3>A. A live donation arrives (built: <code>transparency/listener.py</code>, testnet, temporary record rules)</h3>
   <div class="diagram">
 <pre class="mermaid">
 sequenceDiagram
-  participant Bank as Bank webhook
+  participant Bank as SePay webhook
   participant L as Listener
   participant DB as ledger_records
   participant B as chain.py
@@ -263,7 +265,8 @@ sequenceDiagram
   Bank->>L: transfer event (signed)
   L->>L: check signature, build record, new random salt
   L->>DB: save record + salt FIRST
-  L->>B: record(refId, leaf)
+  L-->>Bank: {"success": true} (SePay allows 30 s)
+  L->>B: record(refId, leaf) from memory
   B->>C: entries(refId)? (free read)
   alt not on chain yet
     B->>C: record(refId, leaf) signed by listener key
@@ -369,6 +372,7 @@ sequenceDiagram
     <li><b>It cannot prove truth.</b> We trust the listener to report what the bank said. A wrong record stamped is a wrong record protected.</li>
     <li><b>It cannot prove completeness of live records.</b> A record never stamped is simply absent. The bank's own statement is the cross-check.</li>
     <li><b>It cannot bring data back.</b> The chain holds fingerprints, not records. Lose the database or the salts and the proof is gone. Back them up.</li>
+    <li><b>The bank feed sends no names or recipient fields, and no balance</b> (MB via SePay). Donors and recipients have to be identified by codes in the transfer memo.</li>
     <li><b>The daily count is visible.</b> Anyone can see how many history rows a day had. Pending client confirmation.</li>
     <li><b>The v2 test entry is permanent.</b> Harmless test data, but a reminder that nothing on chain can be deleted.</li>
   </ul>

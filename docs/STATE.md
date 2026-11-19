@@ -16,9 +16,8 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 | Branch | State |
 |---|---|
 | `main` | a1288ff: contract v2, Python bridge, record fields, hygiene pass. Start new work from here |
-| `verify-endpoint` | from `main`; verify endpoint done, awaiting review/merge |
+| `verify-endpoint` | from `main`; contract v3, verify endpoint, ledger records API, SePay adapter + listener, docs. Awaiting owner review/merge |
 | `m3-answer` | chatbot answer flow, fake-LLM tests only. Parked |
-| `vh-branch` | inside `main`; already deleted on GitHub (found gone 2026-11-18) |
 
 ## Done
 - `TransparencyLedger` v3 (hash only, on `verify-endpoint`): `record(refId, leaf)`, `anchorBatch(uint32 yyyymmdd, root, count)`, `verify`, pause; `entries(refId)` = (leaf, recordedAt) only; writes need `RECORDER_ROLE`; duplicate `refId` reverts. 9 hardhat tests pass, one checks no readable fields exist.
@@ -34,11 +33,13 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 - Verify endpoint `transparency/api.py` (standalone FastAPI, read-only, no LISTENER_KEY): `uvicorn transparency.api:app --port 8100`; `POST /verify {"record": {...}, "salt": "hex"}` -> `match`, `found` (found + no match = record or salt changed), `block_time`, `note` (returns nothing the caller did not send). Open `/docs` for a test page. CORS via `VERIFY_CORS_ORIGINS`. 9 tests (fake contract). Live check on v3 passed.
 - Architecture diagram `docs/architecture.drawio` updated for v3 (owner's layout tweaks kept): ledger_records, records API, permissions box, v2 retired.
 - Chatbot M3 written on its own branch (parked).
+- Listener `transparency/listener.py` (2026-11-19): `uvicorn transparency.listener:app --port 8200`, same POST /webhook/sepay (replaces the test receiver; run one at a time). SePay auth -> record (TEMPORARY rules: id `TEST-SEPAY-<id>`, party = SePay memo code else `NO-CODE`, Anonymous / unassigned, memo not in record) -> salt -> `ledger_records` commit -> reply -> stamp in background from in-memory leaf -> save tx hash. Repeats acked; unstamped rows retried on repeat and at startup (`stamp_pending`). DB: LISTENER_DB_URL / DATABASE_URL / sqlite `transparency_data/ledger.db`. 5 tests (fake chain). UNVERIFIED live: owner to run simulator then a real 2,000 VND through it.
+- SePay adapter (2026-11-19, on `verify-endpoint`): `transparency/sepay.py` (HMAC `X-SePay-Signature` over `{timestamp}.{raw body}`, 5 min tolerance, or `Apikey`; parse to normalised tx, VN time +07:00, `SEPAY-{id}`), test receiver `transparency/sepay_receiver.py` (`uvicorn transparency.sepay_receiver:app --port 8200`, POST /webhook/sepay, logs only to `transparency_data/sepay-webhooks.jsonl`, dedupe on id, refuses all if no secret set), simulator `scripts/sepay_simulate.py in|out <amount>` (ids 900000000+). 10 tests. Live test passed 2026-11-19 (owner MB via SePay API, HMAC, cloudflared quick tunnel): 2,000 VND in and out both arrived, in ~13 s after bank time. Findings: `accumulated` = 0 (MB via SePay gives no balance); bank time is minute precision (out arrived 19 s *before* its bank time); no structured sender/recipient fields, only free memo text (inter-bank memo contains sender name + account); `subAccount` null.
 
 ## Next (in order)
 1. Kaggle history loader: transactions into the database, daily root via `anchorBatch`. Waiting on Dong's cleaned file and column list.
-2. Webhook listener: verify signature, dedupe on transaction id, store record and salt (salts must persist), call the bridge.
-3. Small hardening: reject bank time later than now (+ a few minutes) in `records.py`; the contract does not check it. Real case: smoke record bank time 05:00Z is after its block time 03:45Z.
+2. Webhook listener: built with temporary record rules; replace `listener.build_record` after the team meeting (memo codes, measures 1-3), then live test.
+3. Small hardening: reject bank time later than now (+ a few minutes; bank time is minute precision, seen 19 s ahead of receipt) in `records.py`; the contract does not check it. Real case: smoke record bank time 05:00Z is after its block time 03:45Z.
 4. Merge `verify-endpoint` into `main` once the owner has reviewed it.
 
 ## Decisions
@@ -47,16 +48,25 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 - Public vs hashed on chain (client, 2026-11-18, replaces the v2 choice): hash everything. On chain only refId (HMAC), leaf, block time, and per day root + count. Readable records only via the AI app's department permissions (table labels `bank_transaction` / `disbursement`), with audit. Public verify (`transparency/api.py`) stays open: it only confirms data the caller already has.
 - UNVERIFIED with client: whether the per-day `count` on chain is acceptable (it shows how many transactions a history day had). Drop it in v3 before deploy if not.
 - Who decides (owner, 2026-11-18): the "client" is a teacher advising the team; the team decides and asks for advice when unclear. No measures that need a third-party auditor; integrity comes from technical measures only. External data feeds (payOS, SePay, Casso) are fine as sources.
+- Two-person approval for money out (proposed measure 7) dropped (owner, 2026-11-19): manual process, not technical.
 - Team: Hung (owner) main blockchain line; the other Hung a parallel backup blockchain line; Dong downloads and cleans the Kaggle dataset; Tuan builds the dashboard/frontend. See `reminder.md`.
 - Each transaction recorded as its own event, plus one root per day for the starting history.
 - The listener service is the trusted writer. Two-person approval (multisig) later.
 - Old data dropped. Test data comes from a Kaggle transactions file.
 
 ## Open questions
+- Bank feed research (2026-11-19, owner has MB + VCB accounts; none tested yet): SePay docs list MBBank among banks whose money out syncs via API; VCB API only for business/household accounts, personal VCB via SMS (UNVERIFIED in practice). Casso: MB official API, VCB via RPA (Standard plan); money-out support not stated. payOS: no evidence it sees money out. Leaning: source-agnostic adapter (SePay first) + bank statement import for reconciliation.
 - Webhook service: payOS, SePay or Casso. payOS docs do not say whether its webhook covers all bank activity or only payOS links. SePay reports money in and out only for some banks. Confirm bank and service with the client.
 - Where `REFID_SECRET` lives; encryption of stored records at rest.
 
 ## Log (newest first)
+- 2026-11-19 | Claude Code | explainer: bank feed + listener rows, memo-code limit; republished to the same private artifact link (version 2) | docs/explainer.html, docs/STATE.md
+- 2026-11-19 | Claude Code | docs refresh: deleted HANDOVER.md and PLAN.md (old public-chatbot), chain/README for v3, TRANSPARENCY.md rewritten, explainer + drawio show SePay + listener built, AGENTS map + cloudflared gotcha, README layout | docs/*, chain/README.md, AGENTS.md, README.md
+- 2026-11-19 | Claude Code | README: SePay -> tunnel -> listener setup steps | README.md, docs/STATE.md
+- 2026-11-19 | Claude Code | listener: SePay -> record + salt -> ledger_records -> chain stamp, temporary record rules + tests; SePay auth moved into sepay.py | transparency/listener.py, transparency/sepay.py, transparency/sepay_receiver.py, tests/test_listener.py, chain/.env.example, docs/STATE.md
+- 2026-11-19 | Claude Code | SePay live test with owner's MB: in + out received; findings logged under Done | docs/STATE.md
+- 2026-11-19 | Claude Code | dropped measure 7 (two-person approval) per owner note; bank feed research (MB/VCB) under Open questions | reminder.md, docs/STATE.md
+- 2026-11-19 | Claude Code | SePay adapter, test receiver, simulator + tests | transparency/sepay.py, transparency/sepay_receiver.py, scripts/sepay_simulate.py, tests/test_sepay.py, chain/.env.example, docs/STATE.md
 - 2026-11-18 | Claude Code | reminder.md: team discussion section (decisions, gaps, 8 proposed technical integrity measures, open questions) | reminder.md, docs/STATE.md
 - 2026-11-18 | Claude Code | decision: team decides (client = advising teacher), technical integrity measures only, no third-party audits | docs/STATE.md
 - 2026-11-18 | Claude Code | full donor names: NFC + whitespace normalisation in records.py + test | transparency/records.py, tests/test_records.py, docs/STATE.md

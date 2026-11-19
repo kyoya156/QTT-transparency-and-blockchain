@@ -1,17 +1,17 @@
 # TransparencyLedger (chain/)
 
-One contract, three write functions, all restricted to `RECORDER_ROLE` (the listener service):
+Contract v3, **hash only**. Nothing readable goes on chain; readable records stay in our database (`ledger_records`, behind department permissions).
 
-| Function | Event | Purpose |
+| Function | Who | Purpose |
 |---|---|---|
-| `recordIncome(refId, leaf, (amount, txTime, currency, donorId, donorName))` | `Income` | money in |
-| `recordExpense(refId, leaf, (amount, txTime, currency, recipientId, recipientType))` | `Expense` | money out |
-| `anchorBatch(day, root, count)` | `BatchAnchored` | Merkle root of the starting history, once per day |
+| `record(refId, leaf)` | `RECORDER_ROLE` (listener) | one live transaction; event `Recorded` |
+| `anchorBatch(day, root, count)` | `RECORDER_ROLE` | Merkle root of one history day (`day` = yyyymmdd); event `BatchAnchored` |
+| `verify(refId, leaf)`, `entries(refId)`, `batches(day)` | anyone (free reads) | `entries` = (leaf, block time) |
+| `pause()` / `unpause()`, grant/revoke roles | admin | stop writes if the listener key leaks |
 
-- `refId` is an HMAC of the bank's transaction id, so webhook retries are rejected on-chain (`AlreadyRecorded`).
-- `leaf` is the salted hash of the full record, built off-chain.
-- Public in plain text (v2): amount, currency, bank time, donor ID, recipient ID and type. `donorName` is sent empty until the client approves names on chain. Everything on chain is permanent; use codes for people, never children's names.
-- Admin can grant or revoke recorders and `pause()` writes if the recorder key leaks.
+- `refId` = HMAC(`REFID_SECRET`, source transaction id), so bank ids are not public. A second write for the same `refId` reverts (`AlreadyRecorded`); the Python bridge checks `entries` first and returns `exists` on webhook retries.
+- `leaf` = salted hash of the full record (`transparency/merkle.py`). The salt stays off chain; losing it means that record can never be checked.
+- Everything on chain is permanent. The per-day `count` shows how many history rows a day had (open question in `reminder.md`).
 
 ## Run
     npm install
@@ -19,12 +19,14 @@ One contract, three write functions, all restricted to `RECORDER_ROLE` (the list
     npx hardhat run scripts/deploy.js                 # local, in-process
 
 ## Base Sepolia
+Live: `deployments/baseSepolia.json` (v3 `0x444cbfb6224B5a9cB8bE25c2BAa4AC646a446244`). Retired: `baseSepolia-v2.json` (plain-text fields, holds one test entry), `baseSepolia-v1.json`.
+
 Copy `chain/.env.example` to `chain/.env`, fill `DEPLOYER_KEY` and `RECORDER_ADDRESS`, then:
 
     npx hardhat run scripts/deploy.js --network baseSepolia
+    npx hardhat run scripts/grant-recorder.js --network baseSepolia   # only if the deploy did not grant it
 
-Needs a test wallet funded with free Base Sepolia ETH. Never commit a key; use a throwaway wallet for tests.
-The live address is in `deployments/baseSepolia.json`; `deployments/baseSepolia-v1.json` is the retired v1.
+Needs a throwaway test wallet funded with free Base Sepolia ETH. Never commit a key. After any contract change, re-copy the ABI to `transparency/abi.json`.
 
 `hardhat.config.js` compiles with the bundled solc-js, so no compiler download is needed.
 

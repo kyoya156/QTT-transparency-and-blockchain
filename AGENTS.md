@@ -14,12 +14,14 @@ Owner: Hung (final decider on technical choices).
 - Windows + PowerShell on the owner's machine. Local projects live in `D:\local-projects`; keep `node_modules` out of OneDrive.
 
 ## Map
-- `chain/`: Hardhat project, `TransparencyLedger.sol`, tests, `scripts/deploy.js`, `scripts/grant-recorder.js`.
-- `transparency/`: Python Merkle, synthetic ledger, anchors, batch. CLI: `scripts/transparency.py`.
-- `app/`, `docs/`: internal assistant (parked) and its docs.
+- `chain/`: Hardhat project, `TransparencyLedger.sol` (v3, hash only), tests, `scripts/deploy.js`, `scripts/grant-recorder.js`.
+- `transparency/`: Python records, Merkle, chain bridge, verify endpoint, SePay adapter + webhook listener. See `docs/TRANSPARENCY.md`; bank feed setup in root `README.md`.
+- `app/api/ledger.py`: readable records behind department permissions.
+- `app/` (rest), `docs/ACCESS.md`, `docs/CORRECTION_TICKETS.md`, `docs/CRAWLER_ENDPOINT.md`, `docs/DECISIONS.md`: internal assistant (parked).
 
 ## Gotchas
 - Hardhat compiles with bundled solc-js (`chain/hardhat.config.js`); no compiler download.
 - ethers `resolveName is not implemented` = an address argument was not a valid hex address (quotes, spaces, placeholder).
 - Claude's cloud sandbox cannot reach Base Sepolia RPC or delete GitHub branches. On-chain steps run on the owner's machine.
+- cloudflared quick tunnel fails with "Rule #1 is matching the hostname ''": an old `~/.cloudflared/config.yml` is loaded. Pass an empty config (root `README.md`, Bank feed step 3).
 - A stop hook may warn about unpushed commits with no remote branch. Cause was a single-branch fetch refspec, since fixed. Compare `git ls-remote --heads origin <branch>` with `git rev-parse HEAD` before believing it.
