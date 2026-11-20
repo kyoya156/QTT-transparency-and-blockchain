@@ -63,6 +63,7 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 - Where `REFID_SECRET` lives; encryption of stored records at rest.
 
 ## Log (newest first)
+- 2026-11-20 | Claude Code | reminder: listener done, list of what is still missing on the blockchain side (backups, REFID_SECRET, hosting, gas alert, loader, Basescan verify, nightly events + schedule, dashboard data) | reminder.md, docs/STATE.md
 - 2026-11-20 | Claude Code | owner live test of measures 1-6 passed (2 simulated + 1 real transfer, nightly ok) | docs/STATE.md
 - 2026-11-20 | Claude Code | measures 1-6: record links/balance/source hash, plain donor names, insert-only guard, listener tamper checks + late alert + future-time guard, nightly check, tests, docs | transparency/records.py, transparency/listener.py, transparency/guard.py, transparency/nightly.py, app/models.py, app/api/ledger.py, app/migrations.py, tests/test_records.py, tests/test_listener.py, tests/test_integrity.py, tests/test_ledger_api.py, chain/.env.example, docs/MEASURES.md, docs/STATE.md, reminder.md
 - 2026-11-19 | Claude Code | measure 5 agreed (team); new docs/MEASURES.md with detailed explanation, examples, sub-choices (proposals), code gaps, tests | reminder.md, docs/MEASURES.md, docs/STATE.md

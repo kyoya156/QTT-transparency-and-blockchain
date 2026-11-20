@@ -67,8 +67,30 @@ Suggested order: 1-3 now (before Dong's data), then 4, 6, 5, 8.
 - [x] Add `LISTENER_KEY` and `REFID_SECRET` to `chain/.env`; live test record + anchor passed.
 - [x] Verify endpoint (`transparency/api.py`).
 - [x] SePay test receiver + live test on MB (in and out).
-- [ ] Webhook listener.
+- [x] Webhook listener with measures 1-6; live test passed 2026-11-20 (2 simulated + 1 real transfer, nightly check ok).
 - [ ] Decide where `REFID_SECRET` is stored.
+
+### Still missing on the blockchain side (2026-11-20)
+Besides the team decisions (memo codes, correction shape) and Dong's data:
+
+Needed before a real demo:
+1. [ ] **Backups of the database and salts.** A lost salt means that record can never be checked again. Nightly copy of the database to a second place.
+2. [ ] **Where `REFID_SECRET` lives.** Lost or changed = no existing record can be found on chain again.
+3. [ ] **Stable home for the listener.** Today: your PC + quick tunnel, URL changes on restart (SePay must be updated each time). Named Cloudflare tunnel or a small server.
+4. [ ] **Low-balance alert for the listener wallet** (~0.0003 test ETH). Empty = stamping stops quietly; rows wait unstamped.
+5. [ ] **History loader** (daily roots + a proof per row). Can start from a guessed format, adjust when Dong's file arrives.
+
+Makes the claims stronger:
+6. [ ] **Verify the contract source on Basescan**, so anyone can read the code and see it is hash only.
+7. [ ] **Nightly check, second half:** every chain entry has a matching row; run it automatically (Windows Task Scheduler).
+8. [ ] **Data for Tuan's dashboard:** agree the public fields, add an endpoint.
+
+Later / optional:
+9. [ ] Donor receipts (measure 8, paused).
+10. [ ] Two-person wallet (multisig) as contract admin; today one wallet.
+11. [ ] Merge `verify-endpoint` into `main`.
+
+Note for the report: all of this runs on Base Sepolia, a test network.
 -Someone checks a record Three possible answers: match (unchanged since the block time), found but no match (the record or salt was altered), or not found (never stamped).
 need example cases
 
