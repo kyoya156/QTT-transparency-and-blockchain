@@ -19,6 +19,10 @@ class LocalAnchor:
             return []
         return [json.loads(line) for line in self.path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
+    def blocks(self) -> list[dict]:
+        """Public read of the anchored chain (no private records or salts)."""
+        return self._blocks()
+
     @staticmethod
     def _hash(block: dict) -> str:
         body = {k: block[k] for k in ("height", "prev", "day", "root", "count", "ts")}

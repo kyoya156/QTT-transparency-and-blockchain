@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from . import models
 from .api import (admin as admin_api, chat as chat_api, search as search_api, session as session_api,
-                  tickets as tickets_api)
+                  tickets as tickets_api, transparency as transparency_api)
 from .db import engine, get_db
 from .migrations import init_db
 
@@ -18,6 +18,7 @@ app.include_router(search_api.router)
 app.include_router(chat_api.router)
 app.include_router(admin_api.router)
 app.include_router(tickets_api.router)
+app.include_router(transparency_api.router)
 
 
 @app.on_event("startup")
@@ -50,6 +51,11 @@ _STATIC.mkdir(exist_ok=True)
 @app.get("/chat", include_in_schema=False)
 def chat_page():
     return FileResponse(_STATIC / "chat.html")
+
+
+@app.get("/transparency", include_in_schema=False)
+def transparency_page():
+    return FileResponse(_STATIC / "transparency.html")
 
 
 app.mount("/admin", StaticFiles(directory=str(_STATIC), html=True), name="admin")

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QNE · Minh bạch</title>
+<style>
+:root{--bg:#f4f7f3;--panel:#fff;--fg:#17231b;--mut:#5d6b61;--line:#dce5dc;--green:#1f6b45;--green2:#2f8b5b;--gold:#c58b2a;--red:#a33a3a;--soft:#e8f2ea;--shadow:0 12px 34px rgba(20,50,30,.10)}
+@media (prefers-color-scheme:dark){:root{--bg:#101612;--panel:#17201a;--fg:#e9f1eb;--mut:#a8b7ac;--line:#2b3a30;--soft:#1d2b22;--shadow:0 12px 34px rgba(0,0,0,.35)}}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(1100px 500px at 80% -10%,rgba(47,139,91,.16),transparent 60%),var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+button,input,textarea,select{font:inherit}button{cursor:pointer}.hidden{display:none!important}
+.shell{max-width:1080px;margin:0 auto;padding:18px}
+.top{display:flex;align-items:center;gap:14px;justify-content:space-between;padding:10px 0 18px}
+.brand{display:flex;align-items:center;gap:12px}.logo{width:44px;height:44px;border-radius:14px;background:linear-gradient(145deg,var(--green),var(--green2));display:grid;place-items:center;color:#fff;font-weight:800;box-shadow:var(--shadow)}
+.brand h1{font-size:19px;margin:0}.brand p{margin:0;color:var(--mut);font-size:12.5px}
+.nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.nav a,.nav button{border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:999px;padding:7px 13px;text-decoration:none;font-size:13px}.nav a:hover,.nav button:hover{border-color:var(--green2);color:var(--green2)}.who{font-size:12.5px;color:var(--mut);padding:0 4px}
+.login{max-width:520px;margin:7vh auto;background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:30px;box-shadow:var(--shadow)}.login h2{margin:0 0 6px;font-size:24px}.login p{color:var(--mut);margin:0 0 20px}.login input{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--fg);margin-bottom:10px}
+.btn{border:0;border-radius:12px;padding:10px 16px;background:var(--green);color:#fff;font-weight:650}.btn:hover{background:var(--green2)}.btn.ghost{background:var(--panel);color:var(--fg);border:1px solid var(--line);font-weight:500}.btn.small{padding:6px 10px;border-radius:9px;font-size:12.5px}.msg{font-size:13px;color:var(--red);min-height:20px;margin-top:8px}
+.grid{display:grid;gap:14px}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow)}.card b{display:block;font-size:24px;letter-spacing:-.5px}.card span{font-size:12px;color:var(--mut)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow)}.panel h2{font-size:16px;margin:0 0 4px}.panel p{color:var(--mut);font-size:13px;margin:0 0 12px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top;font-size:13px}th{color:var(--mut);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;word-break:break-all}
+input,select,textarea{border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:10px;padding:9px 11px;width:100%}textarea{min-height:110px;font-family:ui-monospace,Consolas,monospace;font-size:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row>*{flex:0 0 auto}.row input,.row select{flex:1 1 180px;width:auto}
+.notice{padding:10px 12px;border-radius:10px;background:#fff7e8;border:1px solid #ecd3a3;color:#6b4a12;font-size:12.5px;margin-top:10px}@media (prefers-color-scheme:dark){.notice{background:#2a2317;border-color:#5d4a28;color:#f0d7a7}}
+.ok{color:var(--green);font-weight:700}.bad{color:var(--red);font-weight:700}
+pre{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:12px;overflow:auto;max-height:340px;font-size:12px}
+@media (max-width:800px){.cards{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="top">
+  <div class="brand"><div class="logo">QNE</div><div><h1>Minh bạch khoản chi</h1><p>Merkle + neo write-once · bằng chứng thay đổi được, không phải bằng chứng đúng</p></div></div>
+  <div class="nav" id="nav" style="display:none"><span class="who" id="who"></span><a href="/chat">Trợ lý</a><a href="/admin" id="adminLink" style="display:none">Quản trị</a><button id="logout">Đăng xuất</button></div>
+</header>
+
+<section class="login" id="login">
+  <h2>Đăng nhập nội bộ</h2>
+  <p>Dùng token nội bộ. Finance xem được bản ghi và tạo proof; volunteer chỉ xem root/count công khai.</p>
+  <input id="token" type="password" placeholder="Token nội bộ" autocomplete="off"><button class="btn" id="connect">Kết nối</button>
+  <div class="msg" id="loginMsg"></div>
+</section>
+
+<main id="app" class="hidden grid">
+  <section class="cards">
+    <div class="card"><b id="cChain">—</b><span>tính toàn vẹn chuỗi neo</span></div>
+    <div class="card"><b id="cBlocks">—</b><span>block đã neo</span></div>
+    <div class="card"><b id="cBatches">—</b><span>batch công khai</span></div>
+    <div class="card"><b id="cRole">—</b><span>quyền của bạn</span></div>
+  </section>
+
+  <section class="panel">
+    <h2>Batch đã neo</h2>
+    <p>Root và số bản ghi được công khai. Bản ghi và salt nằm trong file riêng, chỉ finance/admin/dev xem được.</p>
+    <div id="batches"></div>
+    <div class="notice" id="synthetic"></div>
+  </section>
+
+  <section class="panel" id="makePanel">
+    <h2>Tạo batch mới (admin/dev)</h2>
+    <p>Bản demo dùng ledger tổng hợp. Khi có sao kê ngân hàng thật, thay <span class="mono">ledger.synthetic_day</span> bằng bản export đã đối soát.</p>
+    <div class="row"><input id="day" type="date"><button class="btn" id="make">Tạo + neo</button></div>
+    <div class="msg" id="makeMsg"></div>
+  </section>
+
+  <section class="panel" id="financePanel">
+    <h2>Bản ghi & proof (finance/admin/dev)</h2>
+    <p>Chọn ngày để xem bản ghi riêng. Proof gồm bản ghi, salt và đường Merkle; chỉ gửi cho người cần kiểm tra.</p>
+    <div class="row"><select id="daySel"></select><button class="btn ghost" id="loadRecords">Xem bản ghi</button><input id="recordId" placeholder="record id, vd 2026-11-16-004"><button class="btn" id="makeProof">Tạo proof</button></div>
+    <div id="records"></div>
+    <div id="proof"></div>
+  </section>
+
+  <section class="panel" id="verifyPanel">
+    <h2>Kiểm tra proof</h2>
+    <p>Dán proof JSON. Hệ thống kiểm tra với root đã neo, không tin root nằm trong proof.</p>
+    <textarea id="proofIn" placeholder='{"day":"...","record":{...},"salt":"...","path":[...],"root":"..."}'></textarea>
+    <div class="row" style="margin-top:8px"><button class="btn" id="verify">Kiểm tra</button><span id="verifyMsg"></span></div>
+  </section>
+</main>
+</div>
+<script>
+const $=s=>document.querySelector(s);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let me=null,status=null;
+async function api(path,opt={}){const r=await fetch(path,{credentials:'same-origin',headers:{'Content-Type':'application/json',...(opt.headers||{})},...opt});if(!r.ok){let t='';try{t=await r.text()}catch(e){}const e=new Error(r.status+' '+t.slice(0,300));e.status=r.status;throw e}return r.json()}
+function setLogin(show){$('#login').classList.toggle('hidden',!show);$('#app').classList.toggle('hidden',show);$('#nav').style.display=show?'none':'flex'}
+async function boot(){try{me=await api('/api/session');await enter()}catch(e){setLogin(true)}}
+async function enter(){setLogin(false);$('#who').textContent=`${me.name} · ${me.department}`;$('#adminLink').style.display=me.department==='admin'?'':'none';$('#cRole').textContent=me.department;$('#makePanel').style.display=['admin','dev'].includes(me.department)?'':'none';$('#financePanel').style.display=['admin','dev','finance'].includes(me.department)?'':'none';$('#verifyPanel').style.display=['admin','dev','finance'].includes(me.department)?'':'none';await refresh()}
+$('#connect').onclick=async()=>{try{me=await api('/api/session',{method:'POST',body:JSON.stringify({token:$('#token').value.trim()})});$('#token').value='';await enter()}catch(e){$('#loginMsg').textContent=e.status===401?'Token không hợp lệ hoặc đã bị vô hiệu hoá.':e.message}};
+$('#logout').onclick=async()=>{try{await api('/api/session',{method:'DELETE'})}catch(e){};me=null;setLogin(true)};
+async function refresh(){status=await api('/api/transparency/status');$('#cChain').innerHTML=status.chain_ok?'<span class="ok">OK</span>':'<span class="bad">BROKEN</span>';$('#cBlocks').textContent=status.blocks.length;$('#cBatches').textContent=status.batches.length;$('#synthetic').textContent=status.synthetic_note;renderBatches(status.batches)}
+function renderBatches(items){if(!items.length){$('#batches').innerHTML='<p class="mono">Chưa có batch. Admin/dev có thể tạo một batch mô phỏng bên dưới.</p>';return}
+ $('#batches').innerHTML=`<table><tr><th>Ngày</th><th>Root</th><th>Số bản ghi</th><th>Block</th></tr>`+items.map(b=>`<tr><td>${esc(b.day)}</td><td class="mono">${esc(b.root)}</td><td>${esc(b.count)}</td><td>${esc(b.anchor?.height??'')}</td></tr>`).join('')+`</table>`;
+ $('#daySel').innerHTML=items.map(b=>`<option>${esc(b.day)}</option>`).join('');}
+$('#make').onclick=async()=>{const day=$('#day').value;if(!day){$('#makeMsg').textContent='Chọn ngày';return}try{const r=await api('/api/transparency/batch',{method:'POST',body:JSON.stringify({day})});$('#makeMsg').textContent='Đã neo '+day+' · '+r.block.count+' bản ghi';await refresh()}catch(e){$('#makeMsg').textContent=e.message}};
+$('#loadRecords').onclick=async()=>{const day=$('#daySel').value;if(!day)return;try{const r=await api('/api/transparency/records/'+day);$('#records').innerHTML=`<table><tr><th>ID</th><th>Ngày</th><th>Hướng</th><th>Số tiền</th><th>Loại</th><th>Đối tượng</th></tr>`+r.records.map(x=>`<tr><td class="mono">${esc(x.id)}</td><td>${esc(x.date)}</td><td>${esc(x.direction)}</td><td>${Number(x.amount_vnd).toLocaleString('vi-VN')} đ</td><td>${esc(x.category)}</td><td>${esc(x.counterparty)}</td></tr>`).join('')+`</table>`}catch(e){$('#records').innerHTML='<p class="bad">'+esc(e.message)+'</p>'}};
+$('#makeProof').onclick=async()=>{const day=$('#daySel').value,rid=$('#recordId').value.trim();if(!day||!rid){$('#proof').innerHTML='<p class="bad">Chọn ngày và nhập record id</p>';return}try{const p=await api('/api/transparency/proof',{method:'POST',body:JSON.stringify({day,record_id:rid})});$('#proof').innerHTML='<p class="ok">Proof đã tạo. Gửi JSON dưới đây cho người kiểm tra.</p><pre>'+esc(JSON.stringify(p,null,2))+'</pre>';$('#proofIn').value=JSON.stringify(p,null,2)}catch(e){$('#proof').innerHTML='<p class="bad">'+esc(e.message)+'</p>'}};
+$('#verify').onclick=async()=>{try{const p=JSON.parse($('#proofIn').value);const r=await api('/api/transparency/verify',{method:'POST',body:JSON.stringify(p)});$('#verifyMsg').innerHTML=r.ok?'<span class="ok">OK: '+esc(r.message)+'</span>':'<span class="bad">FAIL: '+esc(r.message)+'</span>'}catch(e){$('#verifyMsg').innerHTML='<span class="bad">'+esc(e.message)+'</span>'}};
+boot();
+</script>
+</body>
+</html>
