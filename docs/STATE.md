@@ -1,6 +1,6 @@
 # Project state (living file)
 
-Last updated: 2026-11-18 by Claude Code session. Newest facts win. Keep this short; move old detail to the log.
+Last updated: 2026-11-20 by Claude Code session. Newest facts win. Keep this short; move old detail to the log.
 
 ## Update protocol (every agent, end of every session)
 1. Update "Now", "Done", "Next" and "Decisions" so a cold reader is current.
@@ -20,6 +20,7 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 | `m3-answer` | chatbot answer flow, fake-LLM tests only. Parked |
 
 ## Done
+- Integrity measures 1-6 built (2026-11-20, on `verify-endpoint`, detail in `docs/MEASURES.md`): records carry `seq`, `prev` (previous leaf), running `balance` (from `OPENING_BALANCE`), `source_hash` (sha256 of the signed SePay message, stored in `source_raw` + `source_auth`); donor names plain, no diacritics, upper case. `ledger_records` insert-only by DB trigger (`transparency/guard.py`; only stamp columns fillable once). Listener: future bank time refused; unstamped rows stamped only after rebuilding from the signed message (resend or stored original); late stamp > 10 min flagged + audited. Nightly check `python -m transparency.nightly`. Tests: test_listener (11), test_integrity (9). UNVERIFIED: Postgres trigger (no Postgres in tests); SePay resend body byte-identical.
 - `TransparencyLedger` v3 (hash only, on `verify-endpoint`): `record(refId, leaf)`, `anchorBatch(uint32 yyyymmdd, root, count)`, `verify`, pause; `entries(refId)` = (leaf, recordedAt) only; writes need `RECORDER_ROLE`; duplicate `refId` reverts. 9 hardhat tests pass, one checks no readable fields exist.
 - Contract v3 LIVE (84532): `0x444cbfb6224B5a9cB8bE25c2BAa4AC646a446244`, block 60415277, listener granted `RECORDER_ROLE` in the deploy (read back true). `chain/.env` CONTRACT_ADDRESS updated. Record `chain/deployments/baseSepolia.json`; v2 record kept as `baseSepolia-v2.json`. Smoke test: `TEST-SMOKE-0002` tx `0xc5b2fb1f4a34db46784506e9cdd530021a18fb64eeb2e9dd6f6849a475c9fcbb`, retry `exists`, verify true, tampered false, public /verify match; record + salt in `transparency_data/smoke-test-v3.json` (git-ignored). Listener balance ~0.000299 ETH.
 - Contract v2 RETIRED: `0xC20ae8E6DEF7bF9eE347aa3Fa4213960bFA4fdf3`. It holds only the smoke-test entry in plain text (amount 1, `TEST-DONOR`); that stays public forever, test data only. Listener has `RECORDER_ROLE` there; balance 0.0003 ETH. Record in `chain/deployments/baseSepolia.json`.
@@ -38,11 +39,13 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 
 ## Next (in order)
 1. Kaggle history loader: transactions into the database, daily root via `anchorBatch`. Waiting on Dong's cleaned file and column list.
-2. Webhook listener: built with temporary record rules; replace `listener.build_record` after the team meeting (memo codes, measures 1-3), then live test.
-3. Small hardening: reject bank time later than now (+ a few minutes; bank time is minute precision, seen 19 s ahead of receipt) in `records.py`; the contract does not check it. Real case: smoke record bank time 05:00Z is after its block time 03:45Z.
-4. Merge `verify-endpoint` into `main` once the owner has reviewed it.
+2. Webhook listener: measures 1-5 built; still temporary party/name rules until the memo-code decision; then live test (simulator, then a real 2,000 VND). Old `transparency_data/ledger.db` (if any) has the old shape: move it aside first.
+3. Kaggle loader must use `records.link` too (same seq/prev/balance chain, `source_hash` = sha256 of the source row) and set `OPENING_BALANCE` first.
+4. Measure 4 corrections: agree the correction record shape (`corrects` + reason + adjusting amount), then build. Measure 6: read `Recorded` events so every chain entry must have a row; schedule the nightly run.
+5. Merge `verify-endpoint` into `main` once the owner has reviewed it.
 
 ## Decisions
+- Measures 1-6 agreed (team, 2026-11-19); measure 5 sub-choices built as proposed (resend = tamper check, startup rebuild from stored original, 10 min late, audit_log + flag). Donor name (owner, 2026-11-20): plain text, no diacritics, upper case, readable only via permissions (replaces "accents kept"). Opening balance: `OPENING_BALANCE` in chain/.env, 0 for now.
 - Donor names (owner, 2026-11-18): full name as given, e.g. `Phạm Thanh Hùng`, or `Anonymous`. Off chain only (hash on chain), readable via `bank_transaction` label. Names are NFC-normalised and spaces collapsed so the same visible name always hashes the same; case and accents kept as given (bank feeds often send `PHAM THANH HUNG`). Open: donor consent wording for storing full names (Vietnam personal data rules, Decree 13/2023).
 - Record shape (owner, 2026-11-18), in `transparency/records.py`: money in = amount + currency + donor_name (`Anonymous` allowed) + donor_id + bank time; money out = amount + currency + recipient_id + recipient_type (`unassigned` until Dong's cleaned data decides) + bank time. Bank time is separate from block time.
 - Public vs hashed on chain (client, 2026-11-18, replaces the v2 choice): hash everything. On chain only refId (HMAC), leaf, block time, and per day root + count. Readable records only via the AI app's department permissions (table labels `bank_transaction` / `disbursement`), with audit. Public verify (`transparency/api.py`) stays open: it only confirms data the caller already has.
@@ -60,6 +63,11 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 - Where `REFID_SECRET` lives; encryption of stored records at rest.
 
 ## Log (newest first)
+- 2026-11-20 | Claude Code | measures 1-6: record links/balance/source hash, plain donor names, insert-only guard, listener tamper checks + late alert + future-time guard, nightly check, tests, docs | transparency/records.py, transparency/listener.py, transparency/guard.py, transparency/nightly.py, app/models.py, app/api/ledger.py, app/migrations.py, tests/test_records.py, tests/test_listener.py, tests/test_integrity.py, tests/test_ledger_api.py, chain/.env.example, docs/MEASURES.md, docs/STATE.md, reminder.md
+- 2026-11-19 | Claude Code | measure 5 agreed (team); new docs/MEASURES.md with detailed explanation, examples, sub-choices (proposals), code gaps, tests | reminder.md, docs/MEASURES.md, docs/STATE.md
+- 2026-11-19 | Claude Code | reminder: measure 8 receipt = ledger_records row (record_json + salt + ref_id + chain_tx) | reminder.md, docs/STATE.md
+- 2026-11-19 | Claude Code | reminder: donor trace-back topic paused with options 1-3 noted; measure 8 marked paused | reminder.md, docs/STATE.md
+- 2026-11-19 | Claude Code | explainer: mermaid was never loaded (diagrams showed as raw text locally), now loaded from jsdelivr 11.4.1 with page-token theme; stronger card/table contrast + shadows; charset/viewport meta; republished (version 3) | docs/explainer.html, docs/STATE.md
 - 2026-11-19 | Claude Code | explainer: bank feed + listener rows, memo-code limit; republished to the same private artifact link (version 2) | docs/explainer.html, docs/STATE.md
 - 2026-11-19 | Claude Code | docs refresh: deleted HANDOVER.md and PLAN.md (old public-chatbot), chain/README for v3, TRANSPARENCY.md rewritten, explainer + drawio show SePay + listener built, AGENTS map + cloudflared gotcha, README layout | docs/*, chain/README.md, AGENTS.md, README.md
 - 2026-11-19 | Claude Code | README: SePay -> tunnel -> listener setup steps | README.md, docs/STATE.md

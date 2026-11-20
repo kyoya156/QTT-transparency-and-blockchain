@@ -1,3 +1,5 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QTT Ledger Explained</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -6,11 +8,12 @@
 <style>
 /* Layout: one reading column, a notary's ledger feel; hashes set in mono, "verified" seal green as the accent. */
 :root {
-  --bg: #f6f7f9;
+  --bg: #e9edf2;
   --surface: #ffffff;
   --ink: #16202e;
-  --muted: #5a6575;
-  --line: #dde2e9;
+  --muted: #4b5666;
+  --line: #c3cbd6;
+  --shadow: 0 1px 2px rgba(22,32,46,.08), 0 2px 8px rgba(22,32,46,.06);
   --accent: #0d7a5f;
   --accent-soft: #e2f3ed;
   --warn: #a4471b;
@@ -22,13 +25,13 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #11161d; --surface: #18202a; --ink: #e6ebf2; --muted: #9aa6b6; --line: #2a3542;
+    --bg: #0c1015; --surface: #1b2430; --ink: #e6ebf2; --muted: #a3afbf; --line: #3a4757; --shadow: 0 1px 2px rgba(0,0,0,.4);
     --accent: #4cc9a0; --accent-soft: #15362c; --warn: #f0a37c; --warn-soft: #3a2218; --code-bg: #1f2935;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #11161d; --surface: #18202a; --ink: #e6ebf2; --muted: #9aa6b6; --line: #2a3542;
+  --bg: #0c1015; --surface: #1b2430; --ink: #e6ebf2; --muted: #a3afbf; --line: #3a4757; --shadow: 0 1px 2px rgba(0,0,0,.4);
   --accent: #4cc9a0; --accent-soft: #15362c; --warn: #f0a37c; --warn-soft: #3a2218; --code-bg: #1f2935;
   color-scheme: dark;
 }
@@ -59,7 +62,7 @@ nav.toc a:hover, nav.toc a:focus-visible { border-color: var(--accent); outline:
 .thesis { border-left: 4px solid var(--accent); background: var(--accent-soft); padding: 16px 20px; border-radius: 0 8px 8px 0; font-size: 1.05rem; }
 .caution { border-left: 4px solid var(--warn); background: var(--warn-soft); padding: 14px 18px; border-radius: 0 8px 8px 0; }
 .terms { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-.term { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.term { background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; min-width: 0; }
 .term b { font-family: var(--font-display); font-size: 1rem; }
 .term span { color: var(--muted); font-size: 0.93rem; }
 .scroll { overflow-x: auto; }
@@ -68,12 +71,17 @@ th, td { text-align: left; vertical-align: top; padding: 9px 10px; border-bottom
 th { font-family: var(--font-display); font-weight: 600; white-space: nowrap; }
 td.yes { color: var(--accent); font-weight: 600; }
 td.no { color: var(--warn); font-weight: 600; }
-.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow-x: auto; }
-.diagram pre.mermaid { margin: 0; background: transparent; }
+.diagram { background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 8px; padding: 12px; overflow-x: auto; }
+.diagram pre.mermaid { margin: 0; background: transparent; display: flex; justify-content: center; }
+.diagram pre.mermaid:not([data-processed]) { color: transparent; min-height: 120px; }
+.diagram svg { max-width: 100%; height: auto; }
+.scroll { background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 8px; }
+th { background: var(--code-bg); }
+tr:last-child td { border-bottom: 0; }
 ol.steps { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
 ol.steps li::marker { font-family: var(--font-mono); color: var(--accent); }
 /* demo */
-.demo { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 14px; }
+.demo { background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 10px; padding: 18px; display: grid; gap: 14px; }
 .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .fields label { display: grid; gap: 4px; font-size: 0.82rem; color: var(--muted); min-width: 0; }
 .fields input { font: 0.95rem var(--font-mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; width: 100%; }
@@ -89,7 +97,7 @@ button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .verdict.ok { background: var(--accent-soft); color: var(--accent); }
 .verdict.bad { background: var(--warn-soft); color: var(--warn); }
 .verdict.idle { background: var(--code-bg); color: var(--muted); font-weight: 500; }
-details { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
+details { background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 8px; padding: 10px 14px; }
 details + details { margin-top: -6px; }
 summary { cursor: pointer; font-weight: 600; }
 details p { margin-top: 8px; color: var(--muted); }
@@ -406,6 +414,33 @@ sequenceDiagram
 </section>
 </main>
 
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  if (!window.mermaid) {
+    document.querySelectorAll("pre.mermaid").forEach((el) => { el.style.color = "var(--muted)"; el.setAttribute("data-processed", "failed"); });
+    return;
+  }
+  const css = getComputedStyle(document.documentElement);
+  const v = (n) => css.getPropertyValue(n).trim();
+  mermaid.initialize({
+    startOnLoad: false, securityLevel: "strict", theme: "base",
+    fontFamily: "IBM Plex Sans, Segoe UI, system-ui, sans-serif",
+    themeVariables: {
+      background: v("--surface"), primaryColor: v("--accent-soft"), primaryTextColor: v("--ink"),
+      primaryBorderColor: v("--accent"), lineColor: v("--muted"), textColor: v("--ink"),
+      secondaryColor: v("--code-bg"), tertiaryColor: v("--bg"), clusterBkg: v("--bg"), clusterBorder: v("--line"),
+      actorBkg: v("--accent-soft"), actorBorder: v("--accent"), actorTextColor: v("--ink"), actorLineColor: v("--muted"),
+      signalColor: v("--ink"), signalTextColor: v("--ink"), labelBoxBkgColor: v("--code-bg"), labelBoxBorderColor: v("--line"),
+      labelTextColor: v("--ink"), loopTextColor: v("--ink"), noteBkgColor: v("--code-bg"), noteTextColor: v("--ink"),
+      edgeLabelBackground: v("--surface"), fontSize: "14px"
+    }
+  });
+  // Claim the diagrams so the artifact viewer's own mermaid runtime does not render them a second time.
+  document.querySelectorAll("pre.mermaid").forEach((el) => el.setAttribute("data-claude-mermaid-claimed", "1"));
+  mermaid.run({ querySelector: "pre.mermaid" });
+})();
+</script>
 <script>
 (function () {
   const $ = (id) => document.getElementById(id);

@@ -173,3 +173,10 @@ class LedgerRecord(Base):
     chain_tx: Mapped[str | None] = mapped_column(String(66), nullable=True)     # record() tx, None until sent
     anchor_day: Mapped[str | None] = mapped_column(String(10), nullable=True)   # history rows: day root instead
     created_at: Mapped[datetime.datetime] = _now()
+    # Measures 1-5 (team, 2026-11-19). Insert-only: transparency/guard.py lets only the stamp columns
+    # (chain_tx, stamped_at, stamp_late) be filled once, while chain_tx is still empty.
+    seq: Mapped[int | None] = mapped_column(Integer, unique=True, nullable=True)       # = record["seq"]
+    source_raw: Mapped[str | None] = mapped_column(Text(), nullable=True)            # original signed message
+    source_auth: Mapped[str | None] = mapped_column(Text(), nullable=True)           # JSON: its signature headers
+    stamped_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    stamp_late: Mapped[bool | None] = mapped_column(Boolean, nullable=True)

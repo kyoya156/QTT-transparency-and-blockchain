@@ -22,13 +22,16 @@ TABLE_FOR = {"in": "bank_transaction", "out": "disbursement"}
 
 
 def store(db: Session, rec: dict, salt: bytes, ref: bytes, chain_tx: str | None = None,
-          anchor_day: str | None = None) -> models.LedgerRecord:
+          anchor_day: str | None = None, source_raw: bytes | None = None,
+          source_auth: dict | None = None) -> models.LedgerRecord:
     """Save a record and its salt before (or right after) sending its leaf. Not committed."""
     row = models.LedgerRecord(
         source_tx_id=rec["id"], direction=rec["direction"],
         record_json=merkle.canonical(rec).decode("utf-8"), salt=salt.hex(),
         ref_id="0x" + bytes(ref).hex(), leaf="0x" + merkle.leaf_hash(rec, salt).hex(),
-        chain_tx=chain_tx, anchor_day=anchor_day)
+        chain_tx=chain_tx, anchor_day=anchor_day, seq=rec.get("seq"),
+        source_raw=source_raw.decode("utf-8") if source_raw is not None else None,
+        source_auth=json.dumps(source_auth) if source_auth else None)
     db.add(row)
     db.flush()
     return row
@@ -52,7 +55,8 @@ def chain_client_factory():
 def _out(row: models.LedgerRecord) -> dict:
     return {"source_tx_id": row.source_tx_id, "direction": row.direction, "record": json.loads(row.record_json),
             "salt": row.salt, "ref_id": row.ref_id, "leaf": row.leaf, "chain_tx": row.chain_tx,
-            "anchor_day": row.anchor_day}
+            "anchor_day": row.anchor_day, "seq": row.seq, "stamped_at": row.stamped_at and row.stamped_at.isoformat(),
+            "stamp_late": row.stamp_late}
 
 
 @router.get("/records")

@@ -19,17 +19,23 @@ Last updated: 2026-11-19. Task details live in `docs/STATE.md` ("Next"). How the
 
 ### Proposed technical measures (to agree on)
 Must be decided **before** importing the history, because they change what goes into each fingerprint and fingerprints on chain are permanent:
-1. [ ] **Sequence number + link to the previous record** in every record. Deleting, inserting or reordering any record breaks every link after it.
-2. [ ] **Running balance** in every record. A wrong amount makes all later balances disagree with the real account. Needs the opening balance and rows in time order. **Test 2026-11-19: MB via SePay sends no balance**, so we would compute it ourselves from an opening balance (weaker than the bank stating it; the bank statement import can check it).
-3. [ ] **Fingerprint of the original payOS message** in live records, with the message stored, after checking payOS's signature. Shows the record came from payOS, not typing.
+1. [x] **Sequence number + link to the previous record** in every record. Deleting, inserting or reordering any record breaks every link after it. **Built 2026-11-20** (`docs/MEASURES.md`).
+agreed to option 1
+2. [x] **Running balance** in every record. A wrong amount makes all later balances disagree with the real account. Needs the opening balance and rows in time order. **Test 2026-11-19: MB via SePay sends no balance**, so we would compute it ourselves from an opening balance (weaker than the bank stating it; the bank statement import can check it). **Built 2026-11-20** (`docs/MEASURES.md`).
+agreed to option 2 but show donor ID, amount, date, and running balance , full name(no diacrytic = plain text) and HASH original message (from 3.) 
+in simpler term on record on blockchain (donorID + amount + date + running balance + hash of full name + hash of original message)
+How it reaches the chain (agreed 2026-11-19, "option A"): the chain keeps **one fingerprint of the whole record** (contract v3 unchanged). The readable fields are shown on the dashboard together with the record's salt, so anyone can recompute the fingerprint and compare it with the chain. Public fields are not hashed on their own, but they are inside the fingerprint, so any edit is detected. Rejected "option B" (public fields stored on chain directly): needs contract v4, nothing could ever be removed or corrected out of view, history day roots would not work.
+3. [x] **Fingerprint of the original Sepay message** in live records, with the message stored, after checking Sepay's signature. Shows the record came from Sepay, not typing. **Built 2026-11-20** (`docs/MEASURES.md`).
+agreed save a database version and another hashed version on the record on chain
 
-Built into our system:
-
-4. [ ] **Database refuses edits and deletes** on `ledger_records` (insert only). Corrections are new records pointing to the old one.
-5. [ ] **Listener stamps straight from the message:** check signature, build record, fingerprint in memory, stamp within seconds. Never re-read from the database before stamping. Alert if a stamp is late compared to bank time.
-6. [ ] **Nightly automatic check:** re-hash every row and compare with the chain; every chain entry has a row; no gaps in sequence/links; balances add up; late stamps flagged. Results to the audit log and an alert.
-7. ~~Two-person approval for money out~~ dropped (2026-11-19): a manual process, not a technical measure.
-8. [ ] **Donor receipts:** link or QR with the donor's record + salt, so donors can check their own donation.
+4. [x] **Database refuses edits and deletes** on `ledger_records` (insert only). Corrections are new records pointing to the old one. **Built 2026-11-20** (`docs/MEASURES.md`).
+agreed to option 4, but if the record ever needs to be corrected how about the record on chain?
+Answer: the chain entry stays forever; a correction is a new record pointing to the old one (details + proposal in `docs/MEASURES.md`, measure 4). Shape to agree before building.
+5. [x] **Listener stamps straight from the message:** check signature, build record, fingerprint in memory, stamp within seconds. Never re-read from the database before stamping. Alert if a stamp is late compared to bank time. **Built 2026-11-20** (`docs/MEASURES.md`).
+agreed to option 5 (2026-11-19). Detailed explanation, examples and open sub-choices: `docs/MEASURES.md`, measure 5.
+6. [x] **Nightly automatic check:** re-hash every row and compare with the chain; every chain entry has a row; no gaps in sequence/links; balances add up; late stamps flagged. Results to the audit log and an alert. **Built 2026-11-20** (`docs/MEASURES.md`).
+agreed to option 6
+8. [ ] **Donor receipts:** link or QR with the donor's record + salt, so donors can check their own donation. The receipt is the version sent from `ledger_records`: that row's `record_json` (exact hashed bytes) + `salt` + `ref_id` + `chain_tx`. **Paused (2026-11-19)**, see "Paused topics".i dont quite understand 
 
 Suggested order: 1-3 now (before Dong's data), then 4, 6, 5, 8.
 
@@ -41,6 +47,13 @@ Suggested order: 1-3 now (before Dong's data), then 4, 6, 5, 8.
 - [ ] **Publish monthly totals** (total in, total out, closing balance; no personal data) on the dashboard?
 - [ ] **Where `REFID_SECRET` lives** long term, and backups for the database and salts (losing a salt means that record can never be checked again).
 - [ ] **Donor consent wording** for storing full names (Vietnam Decree 13/2023), with the `Anonymous` option.
+
+### Paused topics (come back later)
+- **Donor traces back to their own transaction** (paused 2026-11-19). Today a donor cannot: checking needs record + salt (ours only) and refId needs `REFID_SECRET`. Options discussed:
+  1. Donation code in the memo (QR pre-fills it) + receipt lookup by code + amount: returns record, salt, refId, chain tx link; donor can check on Basescan without trusting us. Leaning towards this.
+  2. Lookup by the donor's bank reference + amount + time. UNVERIFIED that the sender's reference equals SePay `referenceCode` for inter-bank transfers (test with one transfer from another bank).
+  3. Public daily list built from SePay fields. Codes-only rows (`code` + stamp time + chain link, no amount) fit "hash everything"; showing amount/time needs client OK. Never publish memo text (`content`): inter-bank memos hold sender name + account.
+  Depends on: memo codes decision above, measure 3 (stored original message), measure 8. Does not show where the money was spent (money in is not linked to money out yet).
 
 ## Hung (owner): blockchain, main line
 - [x] Grant `RECORDER_ROLE` to the listener: from `chain/`, run `npx hardhat run scripts/grant-recorder.js --network baseSepolia`. Expect `hasRole check: true`.
@@ -56,8 +69,10 @@ Suggested order: 1-3 now (before Dong's data), then 4, 6, 5, 8.
 - [x] SePay test receiver + live test on MB (in and out).
 - [ ] Webhook listener.
 - [ ] Decide where `REFID_SECRET` is stored.
+-Someone checks a record Three possible answers: match (unchanged since the block time), found but no match (the record or salt was altered), or not found (never stamped).
+need example cases
 
-## The other Hung: blockchain, backup line
+## Viet Hung: blockchain, backup line
 Builds a second blockchain version in parallel, so the team can still submit if one fails.
 - [ ] Keep the backup on its own branch so the two lines do not overwrite each other.
 - [ ] Use the same cleaned dataset from Dong, so either version can be demoed with the same data.

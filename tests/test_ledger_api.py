@@ -51,7 +51,7 @@ def test_finance_reads_by_default_labels(world):
     c, u = world
     assert ids(c.get("/api/ledger/records", headers=u["finance"])) == ["IN-1", "OUT-1"]
     r = c.get("/api/ledger/records/IN-1", headers=u["finance"]).json()
-    assert r["record"]["donor_name"] == "Lan" and r["salt"] == SALT.hex()
+    assert r["record"]["donor_name"] == "LAN" and r["salt"] == SALT.hex()
     assert r["leaf"] == "0x" + merkle.leaf_hash(r["record"], bytes.fromhex(r["salt"])).hex()
 
 

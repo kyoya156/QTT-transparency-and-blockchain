@@ -30,6 +30,8 @@ def init_db(engine: Engine) -> None:
                 "USING gin (to_tsvector('simple'::regconfig, immutable_unaccent(content)));")
             c.exec_driver_sql("ALTER TABLE chunks ADD COLUMN IF NOT EXISTS crawled_at timestamptz;")
         _access_control(engine)
+    from transparency import guard   # measure 4: ledger_records insert-only
+    guard.install(engine)
 
 
 def _access_control(engine: Engine) -> None:
