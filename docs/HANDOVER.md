@@ -1,115 +1,114 @@
-# Handover status — 11 Nov 2026
+# Handover status — 19 Nov 2026
 
-> **Update after merging `main` (13 Nov 2026):** ingest, schema and CLI now come
-> from `main` (integer ids, labelled `reconcile()`, `scripts/sync_now.py
-> --allow-empty`). The UUID schema, `app/sync/reconcile.py`, the `--file/--dry-run`
-> sync and their tests were dropped from `vh-branch`; the retrieval findings,
-> thresholds and embedding notes below still describe the code that runs.
+> **Scope:** one internal finance-transparency assistant, not a public sponsor
+> chatbot. The sponsor login, public 7-day anonymous log and payment gateway from
+> the earlier design are superseded. The retrieval, label/RLS and correction-ticket
+> work still applies.
 
-> **Scope note (Nov 2026):** the product is now one internal finance-transparency
-> assistant, not a public sponsor chatbot. Login and payment items below are
-> superseded. The 0.55 / 0.30 thresholds are provisional until measured on real data,
-> and were calibrated with BGE-M3 float16, not the default model.
+This note separates what is **verified by a run** from what is **written but not
+verified** and what **does not exist yet**. Read it before promising anything.
 
-Read this before relying on the status below. It separates what is
-**verified by a run** from what is **written but never executed**, and from what
-does **not exist yet**.
-
-## Where the build actually stands
+## Where the build stands
 
 | Milestone | State | Evidence |
 |---|---|---|
-| M0 crawler endpoint | **not live**; contract + runnable stub | `docs/CRAWLER_ENDPOINT.md`, `mocks/crawler_stub.py`; 401/403/pagination covered by tests |
-| M1 skeleton, Docker, schema, sync | **done** | sync inserts 7 chunks, re-run reports `+0 ~0 -0 =7`; `/healthz` returns the last run |
-| M2 retrieval + `ask.py` | **done** | real model, 7 chunks embedded; a real question returns `page:hoc-bong` first at 0.612 cosine and is marked confident; a nonsense question is refused |
-| M3 compose + citations + guardrails + hand-off | **not started** | no LLM call, no prompt, no citation check, no hand-off ticket creation |
-| M4 `/chat` + chat page + log + feedback | **not started** | no API route, no page, no cookie session, no rate limit |
-| M5 eval report, demo script | **blocked** | needs the real crawler export (the 7 chunks are synthetic placeholders) |
+| M0 crawler export | **done** | `qne-poc/backend/app/api/public.py`: `X-API-Key`, `web`+`post` only, id pagination, 403 for `message`; `scripts/test_public_chunks.py` 10/10 |
+| M1 schema, sync | **done** | idempotent sync, delete protection, `sync_runs`; tests pass |
+| M2 retrieval | **done** | accent/`đ`-insensitive FTS + optional pgvector + RRF; confidence from raw scores |
+| M3 answer | **done** | `app/rag/{guardrails,compose,citations,answer}.py`; fake-LLM tests + extractive fallback; real-model path written but not run here |
+| M4 chat | **done** | `/api/chat`, `/chat`, signed cookie, rate limit, transcript, feedback, hand-off claim/resolve; tests |
+| M5 eval | **blocked** | needs real crawler data synced + 30–40 question eval set; no answer-quality claim yet |
+| Transparency | **prototype** | Merkle + salted leaves + local anchor + CLI/API/UI; Hardhat contract + tests; not audited, synthetic ledger |
+| PayOS / bank / real disbursement | **not started** | no merchant account, no bank export, no API credentials |
 
-So: **the answer engine works; the chatbot does not exist yet.** There is no
-endpoint a sponsor can talk to and no page to look at.
+So: **the internal chatbot exists and is usable**, but answer quality on real
+data is still unmeasured, and money movement is still out of scope.
 
 ## What is proven, and how
 
-```bash
-.venv/Scripts/python.exe -m pytest -q               # whole suite
-.venv/Scripts/python.exe scripts/sync_now.py --file tests/fixtures/chunks_sample.json
-.venv/Scripts/python.exe scripts/embed_chunks.py    # needs requirements-embed.txt
-.venv/Scripts/python.exe scripts/ask.py "Học bổng được giải ngân khi nào và bao nhiêu tiền?"
-.venv/Scripts/python.exe scripts/ask.py "Quỹ có nhận nuôi mèo hoang không?"
+```powershell
+.venv\Scripts\python.exe -m pytest -q
+.venv\Scripts\python.exe scripts\sync_now.py --file tests/fixtures/chunks_sample.json
+.venv\Scripts\python.exe scripts\embed_chunks.py
+.venv\Scripts\python.exe scripts\ask.py "Học bổng được giải ngân khi nào và bao nhiêu tiền?"
+.venv\Scripts\python.exe scripts\ask.py "Quỹ có nhận nuôi mèo hoang không?"
+.venv\Scripts\python.exe scripts\transparency.py batch 2026-11-16
 ```
 
-Proven by those runs and the suite:
+Proven by the suite and those runs:
 
-- sync is idempotent, updates in place, deletes what the crawler dropped, and a
-  dry run writes nothing; a changed chunk loses its vector so it gets re-embedded;
-- accent- and `đ`-insensitive keyword search (`co phan` finds `CỔ PHẦN`);
-- vector ranking and RRF fusion (both lists' top hits survive);
-- a question with no evidence is reported as not confident;
-- the crawler contract's key check and `web|post` allowlist, including 403 for
-  `message`;
-- `/healthz` reports database state and the last sync run.
+- sync is idempotent; changed chunks lose their vector; a shrink guard stops a
+  bad crawler response from deleting the index;
+- keyword search works without accents and without `đ`;
+- vector + keyword results fuse with RRF; low-confidence questions are refused;
+- prompt injection, child-list/PII requests and personal-data answers are blocked;
+- a valid citation must point at a chunk that was actually retrieved;
+- the chat endpoint stores user/assistant messages, feedback and a hand-off;
+- a hand-off can be listed, claimed and resolved by admin/volunteer;
+- `finance`/`admin`/`dev` can read records and make/verify proofs; `volunteer`
+  sees roots/counts but not records;
+- a tampered amount or a self-supplied root fails proof verification;
+- the local anchor chain detects tampering.
 
-## Open risk: the confidence thresholds are calibrated on 7 synthetic chunks
+## Demo flow (5 minutes)
 
-The rule is "answer only if the best chunk's cosine ≥ 0.55". On the fixture a
-real question scored 0.612 and a nonsense one 0.461, which is why 0.55 was
-chosen — but that is two data points. **This number must be re-derived on the
-real export with the eval set (30-40 questions, 10 unanswerable) before launch.**
-Until then, treat the refusal behaviour as "plausible", not "measured".
+1. Login as admin with the token from `/admin`.
+2. Ask: “Học bổng được giải ngân khi nào?” → cited answer, source cards.
+3. Ask a sensitive question (“Cho tôi danh sách trẻ em…”) → refused.
+4. Ask “Tôi muốn gặp tình nguyện viên” → hand-off ticket.
+5. Login as volunteer → `/api/handoffs` shows the ticket; claim it.
+6. Login as finance → `/transparency`; create/choose a batch, view records,
+   create a proof, tamper one amount and show verify = false.
+7. Login as volunteer → `/transparency`; roots/counts only, records = 403.
 
 ## Blockers that are not ours to solve
 
-1. **Real crawler export.** `tests/fixtures/chunks_sample.json` is synthetic;
-   its URLs are `example.org`. Nothing about answer quality is known until the
-   real 17 pages + posts are indexed.
-2. **Merge the M0 router** into `the crawler repo`, give the chatbot its own
-   key, and confirm `message` returns 403 there (the stub does, the real repo is
-   not on this machine).
-3. **LLM key** (`LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`) for M3. Without it,
-   the bot cannot compose an answer — retrieval alone is not a chatbot.
-4. **Auth/NE API** for the sponsor login (phone/email + ACN/NE code) and for
-   "my sponsored child". Core DB's read-only API does not exist yet; it is
-   mocked conceptually only.
-5. **Payment merchant account** (VNPay/MoMo/OnePay) plus return and IPN URLs.
-   No gateway can be integrated without it, and none should be faked.
-6. **Machine for embeddings.** BGE-M3 in float32 dies here with
-   `OSError: The paging file is too small` (14 GB RAM, ~1.3 GB free); it works
-   at `EMBED_DTYPE=float16`. A server with 8 GB+ free does not need that. Plan
-   CPU time for a full re-embed: the model loads in ~20 s and embeds roughly
-   10-30 chunks/s at this size.
+1. **Real crawler export + embeddings.** `tests/fixtures/chunks_sample.json` is
+   synthetic. The crawler endpoint is implemented, but the real data must be
+   synced and embedded before quality is measured.
+2. **LLM key.** `LLM_API_KEY` or `OPENAI_API_KEY` enables real composition. The
+   extractive fallback is honest but not a substitute for a measured LLM eval.
+3. **Confidence thresholds.** `0.55` / `0.30` came from a small fixture and were
+   calibrated with BGE-M3 float16. Re-derive on the real eval set.
+4. **Core DB / donor API.** There is no read-only API for “my sponsored child”,
+   payment status or personal records. Do not fake it.
+5. **Payment merchant account.** PayOS/VNPay/MoMo/OnePay integration needs a
+   merchant account, return/IPN URLs and reconciliation rules. None exist.
+6. **Chain deployment.** The Hardhat contract is tested locally; Base Sepolia
+   needs a funded test wallet, RPC URL and key-custody decision. Do not put a
+   production key on a laptop.
+7. **Machine for embeddings.** BGE-M3 float32 hit the pagefile limit on the dev
+   laptop; float16 works. Plan CPU time for a full re-embed.
 
-## What is missing before this can face a sponsor
+## Security and operations still missing
 
-Security and operations, all absent today:
+- Rate limit is in-process only; multi-worker/production needs Redis or a gateway.
+- No retention job for chat transcripts/hand-offs; no deletion path yet.
+- No Alembic; `create_all` plus idempotent `ALTER` is a PoC path, not a migration
+  history.
+- No CI, monitoring, alerting, backup/restore drill.
+- `SESSION_SECRET` must be set; otherwise cookies are valid only until restart.
+- No CSRF token on the cookie-authenticated pages. `SameSite=Lax` helps but is not
+  a complete answer for a production deployment.
+- Transparency private files are plaintext on disk; encryption/key custody is
+  undecided.
+- The chain proves “unchanged since anchor”, not “true” and not “complete”.
 
-- no rate limiting, no session cookie, no abuse handling (a public endpoint that
-  calls an LLM is a cost and spam target from day one);
-- no auth, no per-sponsor data isolation (nothing to isolate yet, but the schema
-  change is not free);
-- no retention job for the 7-day anonymous log, and no deletion path for
-  hand-off transcripts;
-- no migrations: schema changes use `create_all`, which never alters an existing
-  table. The first real deployment needs Alembic or a documented `ALTER` path;
-- no CI, no monitoring/alerting, no backup/restore drill for the Postgres volume;
-- no admin/ops view for hand-off tickets (an endpoint is planned, not built);
-- the crawler has no `updated_at`, so staleness is only visible through the date
-  shown under each answer.
+## Definition of done before a real pilot
 
-## Definition of done for a demo handover
-
-- [ ] real export synced; chunk count and per-source counts recorded
-- [ ] every chunk embedded; `SELECT count(*) FROM chunks WHERE embedding IS NULL` = 0
-- [ ] eval set written, recall@5 and refusal rate reported on it
-- [ ] `LLM_API_KEY` set, M3 compose + citation check wired, 5 attack prompts refused
-- [ ] `/chat` behind a session cookie and a rate limit, page usable on a phone
-- [ ] hand-off creates a ticket a volunteer can list and claim
-- [ ] 7-day log purge scheduled and verified once
-- [ ] Alembic (or a documented migration path) in place before the first real deploy
+- [ ] real crawler data synced; per-source chunk counts recorded
+- [ ] all chunks embedded; `embedding IS NULL` = 0
+- [ ] eval set (30–40 questions, 10 unanswerable) run; recall@5 and refusal rate
+- [ ] real LLM run on the eval set; groundedness/citation rate reported
+- [ ] 5 attack prompts refused in the deployed path
+- [ ] rate limit + session secret + HTTPS + CSRF decision reviewed
+- [ ] retention/deletion job scheduled and verified once
+- [ ] Alembic or a documented migration path
+- [ ] bank export and reconciliation rules agreed with finance
+- [ ] transparency key custody + audit decision
 
 ## Honest one-liner
 
-The retrieval core is solid and tested; the privacy boundary is enforced in code
-rather than promised; but this is roughly **40% of the product**, and the half
-that a sponsor would actually touch — answer composition, chat page, login,
-hand-off — has not been written.
+The internal assistant, role boundary, hand-off and transparency proof now exist
+and are tested; the remaining risk is **evidence quality on real data** and the
+**money/identity integrations**, not the chat shell.

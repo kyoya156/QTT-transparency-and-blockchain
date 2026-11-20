@@ -42,6 +42,35 @@ Anything still marked **OPEN** blocks later milestones.
   ids: re-sync deletes chunks, and an answer must keep showing the source and
   date it was built on.
 
+## M4 and transparency decisions (Nov 2026)
+
+- **Auth for the internal page:** exchange a one-time token for a signed
+  `HttpOnly` cookie. The cookie stores `user_id + token_hash + issued_at` and an
+  HMAC; the raw token never goes into JavaScript. Bearer auth stays for API
+  clients and tests. Deactivating a user invalidates both.
+- **No LLM key must not mean a broken demo:** `ExtractiveClient` quotes the first
+  two sentences of at most two evidence blocks and keeps their ids. The UI labels
+  it `trích xuất nguồn`; it is never presented as an LLM answer. With a key, the
+  normal OpenAI-compatible path runs.
+- **Hand-off is a first-class row, not an email.** `handoffs` stores the
+  transcript and supports `open -> claimed -> resolved`; admin/volunteer can
+  claim, only admin/volunteer can resolve. Notifications are deferred.
+- **Rate limit is in-process** for the demo (per user, minute + hour windows).
+  A production deployment behind more than one worker must move it to Redis or
+  the gateway.
+- **Transcript ownership:** `conversations.session_id` is prefixed with
+  `u<user_id>:`; every history/feedback query checks that prefix. This avoids a
+  schema migration while keeping users apart. A later migration can replace it
+  with a real `user_id` column.
+- **Transparency is a separate proof layer, not a payment system.** A batch is
+  a salted Merkle tree; the public file holds root/count/leaves, the private file
+  holds records/salts. The local anchor is a hash-chained append-only file that
+  stands in for a public chain. The chain proves “unchanged since anchor”, never
+  “true” or “complete”.
+- **Finance can see records; volunteer cannot.** The API enforces the role, and
+  the page only hides controls as a convenience. The contract’s recorder role is
+  separate from the app roles.
+
 ## New scope raised by the owner (not in PLAN.md v0.1)
 
 Verbatim intent: chat history is saved only when the sponsor is logged in;
