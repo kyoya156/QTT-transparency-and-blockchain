@@ -98,11 +98,11 @@ Tests (`tests/test_listener.py`): resend unchanged stamps; resend after a databa
 | `prev` | 1 | leaf of record `seq - 1`; record 1 has `GENESIS` (0x00...00) |
 | `balance` | 2 | running balance after this record: `OPENING_BALANCE` (chain/.env, 0 for tests) +in -out |
 | `source_hash` | 3 | sha256 of the exact signed SePay message; the message and its signature headers are kept in `ledger_records.source_raw` / `source_auth` (never shown by the records API: the memo holds sender name + account) |
-| `donor_name` | — | plain text, no diacritics, upper case: `Phạm Thanh Hùng` -> `PHAM THANH HUNG` (owner, 2026-11-20). Readable only through department permissions |
+| `donor_name_hash` | — | salted hash of the donor name, `records.name_hash`. The readable name (plain, no diacritics, upper case: `Phạm Thanh Hùng` -> `PHAM THANH HUNG`) and its own `name_salt` stay in `ledger_records.donor_name` / `name_salt`, readable only through department permissions (team, 2026-11-20) |
 
 The chain still holds one fingerprint per record (option A, contract v3 unchanged).
 
-Note for option A: a public dashboard can show amount / date / balance, but anyone recomputing the fingerprint needs every field including `donor_name` and the salt. So public re-checking works only for people given the full record (department readers, or the donor with their receipt, measure 8).
+**Public view (built 2026-11-20):** `GET /public/records` on the verify service (`transparency/api.py`) returns every record exactly as hashed, its salt, leaf and Basescan link, newest first. Anyone can recompute the fingerprint and compare it with the chain (`POST /verify` or by hand). It never returns the readable name, the name salt or the original bank message (its memo holds sender name + account). `TEST-` records only with `?include_test=true`. A donor's receipt (measure 8) would add their name + `name_salt`, so they can show the hidden name is theirs.
 
 ## Measure 4: insert-only database (built 2026-11-20)
 

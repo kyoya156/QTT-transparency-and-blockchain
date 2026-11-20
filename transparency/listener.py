@@ -18,7 +18,7 @@ the resent message; at startup, from the stored original (its HMAC re-checked). 
 TEMPORARY record rules until the memo-code decision, see reminder.md:
   - record id = LISTENER_ID_PREFIX + "SEPAY-<id>", default prefix "TEST-" so the dashboard skips them;
   - donor_id / recipient_id = the code SePay extracted from the memo, else "NO-CODE";
-  - donor_name = Anonymous; recipient_type = unassigned; memo text is not put in the record.
+  - donor_name = Anonymous (only its salted hash is in the record); recipient_type = unassigned; memo text is not put in the record.
 Needs in chain/.env: SEPAY_WEBHOOK_SECRET (or SEPAY_API_KEY), REFID_SECRET, LISTENER_KEY, CONTRACT_ADDRESS,
 OPENING_BALANCE (integer VND before record 1; 0 for tests).
 Database: LISTENER_DB_URL, else the app's DATABASE_URL, else sqlite file transparency_data/ledger.db.
@@ -31,20 +31,19 @@ import hashlib
 import json
 import logging
 import os
-import pathlib
 import secrets
 import threading
 
 from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app import models
 from app.api.ledger import store
 
-from . import chain, guard, merkle, records, sepay
+from . import chain, merkle, records, sepay
+from . import db as ledger_db
 
 log = logging.getLogger("listener")
 NO_CODE = "NO-CODE"
@@ -95,6 +94,7 @@ def rebuild(row: models.LedgerRecord, raw: bytes) -> bool:
     if not stored["id"].endswith(tx["source_tx_id"]):
         return False
     rec = build_record(tx, prefix=stored["id"][: -len(tx["source_tx_id"])])
+    rec, _ = records.hide_name(rec, bytes.fromhex(row.name_salt) if row.name_salt else None)
     rec = records.link(rec, stored["seq"], stored["prev"], records.balance_before(stored), source_hash(raw))
     return "0x" + merkle.leaf_hash(rec, bytes.fromhex(row.salt)).hex() == row.leaf
 
@@ -104,17 +104,6 @@ def _alarm(sessions: sessionmaker, action: str, detail: dict) -> None:
     with sessions() as db:
         db.add(models.AuditLog(action=action, detail=json.dumps(detail, ensure_ascii=False)))
         db.commit()
-
-
-@functools.lru_cache(maxsize=1)
-def _sessions() -> sessionmaker:
-    url = os.environ.get("LISTENER_DB_URL") or os.environ.get("DATABASE_URL") or ""
-    if not url:
-        pathlib.Path("transparency_data").mkdir(exist_ok=True)
-        url = "sqlite:///transparency_data/ledger.db"
-    eng = create_engine(url, pool_pre_ping=True)
-    guard.install(eng)
-    return sessionmaker(bind=eng, expire_on_commit=False)
 
 
 @functools.lru_cache(maxsize=1)
@@ -128,7 +117,7 @@ def _live() -> tuple[chain.LedgerClient, bytes]:
 
 # Overridden in tests.
 def get_sessions() -> sessionmaker:
-    return _sessions()
+    return ledger_db.sessions()
 
 
 def get_ledger() -> tuple[chain.LedgerClient, bytes]:
@@ -181,11 +170,13 @@ def _insert(sessions: sessionmaker, tx: dict, raw: bytes, auth: dict) -> tuple[d
             if db.query(models.LedgerRecord).filter_by(source_tx_id=rid).count():
                 return None
             seq, prev, before = next_link(db)
-            rec = records.link(build_record(tx), seq, prev, before, source_hash(raw))
+            name_salt = secrets.token_bytes(records.NAME_SALT_BYTES) if tx["direction"] == "in" else None
+            rec, name = records.hide_name(build_record(tx), name_salt)
+            rec = records.link(rec, seq, prev, before, source_hash(raw))
             salt = secrets.token_bytes(SALT_BYTES)
             ref, leaf = chain.ref_id(secret, rec["id"]), merkle.leaf_hash(rec, salt)
             try:
-                store(db, rec, salt, ref, source_raw=raw, source_auth=auth)
+                store(db, rec, salt, ref, source_raw=raw, source_auth=auth, donor_name=name, name_salt=name_salt)
                 db.commit()
                 return rec, ref, leaf
             except IntegrityError:

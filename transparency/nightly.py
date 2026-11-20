@@ -3,7 +3,8 @@
     python -m transparency.nightly            # read-only on chain; exit 1 if any problem
 
 Per row: record_json is canonical; salt + record re-hash to the stored leaf; ref_id = HMAC(REFID_SECRET, id);
-stored original message hashes to the record's source_hash. Across rows: seq 1, 2, 3 ... with no gaps,
+stored original message hashes to the record's source_hash;
+stored donor name + name_salt give donor_name_hash. Across rows: seq 1, 2, 3 ... with no gaps,
 prev = leaf of the record before, balance = previous balance +/- amount (record 1 starts from OPENING_BALANCE).
 Against the chain: every stamped row's leaf is on chain under its ref_id. Also lists late stamps and rows
 still unstamped after LATE_AFTER. Result: one audit_log row ("ledger_check") with the summary.
@@ -49,6 +50,9 @@ def check(db: Session, client: chain.LedgerClient | None, secret: bytes, opening
             bad(row, "record_json is not in canonical form")
         if "0x" + merkle.leaf_hash(rec, bytes.fromhex(row.salt)).hex() != row.leaf:
             bad(row, "record + salt do not give the stored leaf")
+        if row.donor_name is not None and (not row.name_salt or rec.get("donor_name_hash") !=
+                                           records.name_hash(row.donor_name, bytes.fromhex(row.name_salt))):
+            bad(row, "stored donor name does not match donor_name_hash")
         if "0x" + chain.ref_id(secret, rec.get("id", "")).hex() != row.ref_id:
             bad(row, "ref_id does not match the record id")
 

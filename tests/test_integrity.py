@@ -124,3 +124,18 @@ def test_run_writes_audit_row(db):
     assert r["unstamped"] == ["B-1", "B-2"]
     [a] = s.query(models.AuditLog).filter_by(action="ledger_check").all()
     assert json.loads(a.detail)["rows"] == 2
+
+
+def test_swapped_donor_name_is_caught(db):
+    s, eng = db
+    client = chain.LedgerClient(FakeLedger())
+    ns = bytes(16)
+    rec, name = records.hide_name(records.income("B-1", 100, "D-1", T, donor_name="Lan"), ns)
+    rec = records.link(rec, 1, records.GENESIS, OPENING, SRC)
+    ref = chain.ref_id(SECRET, rec["id"])
+    store(s, rec, bytes(16), ref, chain_tx=client.record(ref, merkle.leaf_hash(rec, bytes(16))).tx_hash,
+          donor_name=name, name_salt=ns)
+    s.commit()
+    assert nightly.check(s, client, SECRET, OPENING)["ok"]
+    tamper(eng, "UPDATE ledger_records SET donor_name = 'NGUYEN VAN A'")
+    assert problems(s, client) == ["stored donor name does not match donor_name_hash"]

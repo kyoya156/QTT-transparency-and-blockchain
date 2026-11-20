@@ -83,7 +83,7 @@ Needed before a real demo:
 Makes the claims stronger:
 6. [ ] **Verify the contract source on Basescan**, so anyone can read the code and see it is hash only.
 7. [ ] **Nightly check, second half:** every chain entry has a matching row; run it automatically (Windows Task Scheduler).
-8. [ ] **Data for Tuan's dashboard:** agree the public fields, add an endpoint.
+8. [x] **Data for Tuan's dashboard:** `GET /public/records` built 2026-11-20 (records as hashed + salt + Basescan link; donor name only as a salted hash). Tuan: run `uvicorn transparency.api:app --port 8100`, open `/docs`; set `VERIFY_CORS_ORIGINS` for the dashboard's address.
 
 Later / optional:
 9. [ ] Donor receipts (measure 8, paused).

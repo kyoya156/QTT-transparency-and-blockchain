@@ -37,7 +37,7 @@ def _postgres() -> list[str]:
     changed = " OR ".join(f"NEW.{c} IS DISTINCT FROM OLD.{c}" for c in _frozen())
     cols = ", ".join(f"ADD COLUMN IF NOT EXISTS {c}" for c in (
         "seq integer UNIQUE", "source_raw text", "source_auth text",
-        "stamped_at timestamptz", "stamp_late boolean"))
+        "stamped_at timestamptz", "stamp_late boolean", "donor_name text", "name_salt varchar(64)"))
     return [
         f"ALTER TABLE {TABLE} {cols}",   # tables made before 2026-11-20
         f"""CREATE OR REPLACE FUNCTION ledger_insert_only() RETURNS trigger AS $$

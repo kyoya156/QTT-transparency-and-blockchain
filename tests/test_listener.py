@@ -192,3 +192,12 @@ def test_bad_signature_stores_nothing(world):
     r = http.post("/webhook/sepay", content=raw, headers={"X-SePay-Timestamp": str(int(time.time())),
                                                          "X-SePay-Signature": "sha256=00"})
     assert r.status_code == 401 and rows(sessions) == []
+
+
+def test_name_is_hidden_in_the_record(world):
+    http, sessions, _, _ = world
+    post(http)
+    [row] = rows(sessions)
+    rec = json.loads(row.record_json)
+    assert "donor_name" not in rec and row.donor_name == "Anonymous"
+    assert rec["donor_name_hash"] == records.name_hash("Anonymous", bytes.fromhex(row.name_salt))

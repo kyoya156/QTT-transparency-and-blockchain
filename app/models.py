@@ -180,3 +180,6 @@ class LedgerRecord(Base):
     source_auth: Mapped[str | None] = mapped_column(Text(), nullable=True)           # JSON: its signature headers
     stamped_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     stamp_late: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # Readable donor name + its salt; the record holds only donor_name_hash. Never public.
+    donor_name: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    name_salt: Mapped[str | None] = mapped_column(String(64), nullable=True)

@@ -82,3 +82,16 @@ def test_bank_time_in_the_future_is_refused():
     records.check_not_future(records.income("B", 1, "D", "2026-11-16T09:31:00+07:00"), now)   # within slack
     with pytest.raises(ValueError):
         records.check_not_future(records.income("B", 1, "D", "2026-11-16T09:40:00+07:00"), now)
+
+
+def test_hide_name_keeps_only_a_salted_hash():
+    ns = bytes(range(16))
+    pub, name = records.hide_name(records.income("B", 1, "D", T, donor_name="Phạm Thanh Hùng"), ns)
+    assert name == "PHAM THANH HUNG" and "donor_name" not in pub
+    assert pub["donor_name_hash"] == records.name_hash("PHAM THANH HUNG", ns)
+    assert records.hide_name(records.income("B", 1, "D", T, donor_name="X"), bytes(16))[0]["donor_name_hash"] \
+        != pub["donor_name_hash"]
+    out = records.expense("B", 1, "R", T)
+    assert records.hide_name(out, None) == (out, None)
+    with pytest.raises(ValueError):
+        records.hide_name(records.income("B", 1, "D", T), None)       # money in needs a name salt
