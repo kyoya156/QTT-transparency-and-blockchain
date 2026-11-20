@@ -1,0 +1,95 @@
+<mxfile host="app.diagrams.net" modified="2026-10-16T09:14:00.000Z" agent="workbuddy-ai" version="24.0.0" type="device">
+  <diagram id="nuoiem-topic4-arch" name="Kiến trúc Topic 4 - Nuôi Em">
+    <mxGraphModel dx="1200" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1240" pageHeight="1120" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ===================== TITLE ===================== -->
+        <mxCell id="title" value="KIẾN TRÚC HỆ THỐNG MINH BẠCH TÀI CHÍNH - QUỸ NUÔI EM (Topic 4 MVP)&#10;Python 3.13 stdlib + SQLite · 0 dependency bên thứ ba · mobile-first" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#333333;" vertex="1" parent="0">
+          <mxGeometry x="40" y="16" width="1160" height="44" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== LAYER 1: DATA SOURCES ===================== -->
+        <mxCell id="src_bank" value="SAO KÊ NGÂN HÀNG (CSV)&#10;Vietcombank + VPBank&#10;238.173 dòng · 2018 → 2026" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=12;" vertex="1" parent="0">
+          <mxGeometry x="60" y="90" width="270" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="src_mock" value="FILE MẪU MENTOR&#10;mock data.xlsx&#10;ACN → NE → học sinh → trường" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=12;" vertex="1" parent="0">
+          <mxGeometry x="370" y="90" width="270" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="tests" value="tests/&#10;77 tests OK (Python unittest)&#10;verify_real_data.py → ALL CHECKS PASSED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=12;" vertex="1" parent="0">
+          <mxGeometry x="700" y="90" width="270" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== LAYER 2: INGEST / ETL ===================== -->
+        <mxCell id="ingest_parse" value="parsers.py — TRÍCH XUẤT&#10;4 lỗi đã sửa:&#10;• mã ma từ ngày/trace (DDMMYY)&#10;• ngắt dòng memo (NE1\n156)&#10;• năm 2019 thành mã NE02019&#10;• dãy viết tắt NE/S/T" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="0">
+          <mxGeometry x="60" y="230" width="280" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="ingest_build" value="build_database.py — TẢI VÀO DB&#10;• idempotency (chạy lại an toàn)&#10;• ANALYZE (4.188 ms → 1,6 ms)&#10;• bất biến: tiền lưu 1 lần&#10;• sinh audit_events + exception_queue" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="0">
+          <mxGeometry x="370" y="230" width="280" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== LAYER 3: STORAGE ===================== -->
+        <mxCell id="storage" value="STORAGE — SQLite (file: data/nuoi_em_mvp.sqlite)&#10;schema v2.0 · kết nối READ-ONLY (mode=ro + PRAGMA query_only)&#10;&#10;Tables:&#10;• bank_transactions (238.173 dòng, inbound/outbound)&#10;• transaction_allocations  ← tim mạch: 1 dòng tiền → nhiều mã NE&#10;• students · schools · donors · student_supports&#10;• audit_events (append-only, trigger chặn UPDATE/DELETE)&#10;• approval_tasks (maker-checker) · exception_queue&#10;• school_payment_requests · disbursements · evidence_documents&#10;• report_periods · import_runs · roles&#10;&#10;Indexes: idx_tx_direction_time (4.188 ms → ~1 ms), idx_alloc_ne_code, ..." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontSize=11;align=left;spacingLeft=8;verticalAlign=top;" vertex="1" parent="0">
+          <mxGeometry x="60" y="400" width="590" height="210" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== LAYER 4: BACKEND ===================== -->
+        <mxCell id="backend" value="BACKEND — Python stdlib (0 third-party)&#10;http.server: ThreadingHTTPServer + BaseHTTPRequestHandler&#10;bind 127.0.0.1:8765 · server: NuoiEmTopic4/2.0&#10;&#10;9 API routes — TOÀN GET (POST/PUT/PATCH/DELETE → 405)&#10;• /api/summary · /api/transactions · /api/allocation&#10;• /api/ne · /api/exceptions · /api/approvals&#10;• /api/audit · /api/coverage · /api/metadata&#10;&#10;Security: CSP + X-Frame-Options + X-Content-Type-Options&#10;FORBIDDEN_FIELDS guard — không bao giờ trả PII (student_name, phone, email, raw_description, ...)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=11;align=left;spacingLeft=8;verticalAlign=top;" vertex="1" parent="0">
+          <mxGeometry x="60" y="660" width="590" height="220" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== RECONCILE / INTEGRITY ===================== -->
+        <mxCell id="reconcile" value="reconciliation.py&#10;AuditChain — chuỗi hash&#10;(tamper-evident)&#10;&#10;verify_real_data.py&#10;kiểm chứng bất biến:&#10;• inbound = outbound = 0 đ lệch&#10;• allocations_sum = linked_sum" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=11;verticalAlign=top;" vertex="1" parent="0">
+          <mxGeometry x="700" y="400" width="270" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="note_deps" value="NGUYÊN TẮC THIẾT KẾ&#10;• 0 dependency → dễ chạy, dễ audit&#10;• DB read-only → không thể ghi&#10;• API read-only → không thể sửa&#10;• PII che hoàn toàn ở API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;verticalAlign=top;" vertex="1" parent="0">
+          <mxGeometry x="700" y="660" width="270" height="130" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== LAYER 5: FRONTEND ===================== -->
+        <mxCell id="frontend" value="FRONTEND — HTML/CSS/JS thuần (0 framework, 0 build)&#10;static/index.html · static/app.js · static/styles.css&#10;mobile-first (1 cột @360px, mở rộng @560/860px) · CSP-safe (0 inline handler, 0 style=)&#10;&#10;10 khối: Tổng quan · Giao dịch · Chi tiết phân bổ · Mã NE · Ngoại lệ ·&#10;Kiểm toán · Phê duyệt (maker-checker) · Tỷ lệ phủ · Metadata · Bất biến" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=11;align=left;spacingLeft=8;verticalAlign=top;" vertex="1" parent="0">
+          <mxGeometry x="60" y="930" width="590" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="browser" value="TRÌNH DUYỆT&#10;(người dùng cuối)&#10;mobile / desktop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="0">
+          <mxGeometry x="700" y="930" width="270" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== EDGES ===================== -->
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="0" source="src_bank" target="ingest_parse">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="0" source="src_mock" target="ingest_parse">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="0" source="ingest_parse" target="ingest_build">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82b366;" edge="1" parent="0" source="ingest_build" target="storage">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="kết nối read-only" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#b85450;fontColor=#b85450;" edge="1" parent="0" source="storage" target="backend">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="GET /api/* (JSON)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673a6;" edge="1" parent="0" source="backend" target="frontend">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" value="hiển thị" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6c8ebf;" edge="1" parent="0" source="frontend" target="browser">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="AuditChain.verify()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d6b656;dashed=0;" edge="1" parent="0" source="backend" target="reconcile">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d6b656;dashed=1;" edge="1" parent="0" source="reconcile" target="storage">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" value="kiểm chứng" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d6b656;dashed=1;" edge="1" parent="0" source="tests" target="backend">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" value="kiểm chứng" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d6b656;dashed=1;" edge="1" parent="0" source="tests" target="storage">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

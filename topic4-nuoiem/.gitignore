@@ -1,0 +1,32 @@
+# Dữ liệu gốc KHÔNG BAO GIỜ được đưa lên Git.
+# Sao kê chứa tên/SĐT/email nhà tài trợ, database sinh ra từ nó cũng vậy.
+data/*.sqlite
+data/*.sqlite-journal
+data/*.sqlite-wal
+data/*.csv
+data/*.xlsx
+data/*.xls
+
+# Bản sao dùng một lần cho kiểm thử
+*.sqlite
+*.sqlite-journal
+*_test.sqlite
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# Công cụ / hệ điều hành
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.log
