@@ -32,8 +32,20 @@ class Settings(BaseSettings):
     retrieval_min_ts_rank: float = 0.30
     rrf_k: int = 60
     openai_api_key: str = ""
+    # The docs use LLM_API_KEY; keep OPENAI_API_KEY as an alias for old .env files.
+    llm_api_key: str = ""
     llm_model: str = "gpt-4o-mini"
     llm_base_url: str = ""
+    # Signed login cookie for the internal chat page. Keep it out of git.
+    session_secret: str = ""
+    session_cookie: str = "qne_session"
+    session_max_age: int = 8 * 3600
+    # Public chat cost/abuse guard. One process only; use a gateway/Redis in production.
+    chat_rate_limit_per_minute: int = 20
+    chat_rate_limit_per_hour: int = 120
+    chat_max_message_chars: int = 1000
+    chat_history_limit: int = 50
+    transparency_dir: str = "transparency_data"
 
     model_config = SettingsConfigDict(env_file=str(_ENV), extra="ignore")
 

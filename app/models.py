@@ -95,6 +95,9 @@ class Handoff(Base):
     reason: Mapped[str] = mapped_column(String(64))
     transcript: Mapped[str] = mapped_column(Text())
     status: Mapped[str] = mapped_column(String(16), default="open")
+    claimed_by: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    claimed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolution: Mapped[str | None] = mapped_column(Text(), nullable=True)
     created_at: Mapped[datetime.datetime] = _now()
 
 

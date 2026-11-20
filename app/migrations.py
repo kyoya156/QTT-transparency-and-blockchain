@@ -39,6 +39,9 @@ def _access_control(engine: Engine) -> None:
     """
     with engine.begin() as c:
         c.exec_driver_sql("ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS correlation_id varchar(64);")
+        c.exec_driver_sql("ALTER TABLE handoffs ADD COLUMN IF NOT EXISTS claimed_by integer;")
+        c.exec_driver_sql("ALTER TABLE handoffs ADD COLUMN IF NOT EXISTS claimed_at timestamptz;")
+        c.exec_driver_sql("ALTER TABLE handoffs ADD COLUMN IF NOT EXISTS resolution text;")
         c.exec_driver_sql("ALTER TABLE chunks ADD COLUMN IF NOT EXISTS labels text[] NOT NULL DEFAULT '{}';")
         c.exec_driver_sql(
             "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'chatbot_app') "
@@ -52,4 +55,4 @@ def _access_control(engine: Engine) -> None:
         c.exec_driver_sql(
             "CREATE POLICY chunk_dept_read ON chunks FOR SELECT TO chatbot_app USING ("
             "current_setting('app.full_read', true) = 'on' "
-            "OR labels && string_to_array(coalesce(current_setting('app.depts', true), ''), ','));")
+            "OR labels::text[] && string_to_array(coalesce(current_setting('app.depts', true), ''), ','));")

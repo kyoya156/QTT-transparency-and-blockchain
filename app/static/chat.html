@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QNE · Trợ lý minh bạch</title>
+<style>
+:root{
+  --bg:#f4f7f3; --panel:#fff; --fg:#17231b; --mut:#5d6b61; --line:#dce5dc;
+  --green:#1f6b45; --green2:#2f8b5b; --gold:#c58b2a; --red:#a33a3a; --soft:#e8f2ea;
+  --shadow:0 12px 34px rgba(20,50,30,.10); --radius:18px;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#101612;--panel:#17201a;--fg:#e9f1eb;--mut:#a8b7ac;--line:#2b3a30;--soft:#1d2b22;--shadow:0 12px 34px rgba(0,0,0,.35)}
+}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1100px 500px at 80% -10%,rgba(47,139,91,.16),transparent 60%),var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+button,input,textarea{font:inherit}
+button{cursor:pointer}
+.hidden{display:none!important}
+.shell{max-width:1080px;margin:0 auto;padding:18px}
+.top{display:flex;align-items:center;gap:14px;justify-content:space-between;padding:10px 0 18px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:44px;height:44px;border-radius:14px;background:linear-gradient(145deg,var(--green),var(--green2));display:grid;place-items:center;color:#fff;font-weight:800;box-shadow:var(--shadow)}
+.brand h1{font-size:19px;margin:0;letter-spacing:-.2px}
+.brand p{margin:0;color:var(--mut);font-size:12.5px}
+.nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.nav a,.nav button{border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:999px;padding:7px 13px;text-decoration:none;font-size:13px}
+.nav a:hover,.nav button:hover{border-color:var(--green2);color:var(--green2)}
+.who{font-size:12.5px;color:var(--mut);padding:0 4px}
+.login{max-width:520px;margin:7vh auto;background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:30px;box-shadow:var(--shadow)}
+.login h2{margin:0 0 6px;font-size:24px;letter-spacing:-.4px}
+.login p{color:var(--mut);margin:0 0 20px}
+.login input{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--fg);margin-bottom:10px}
+.btn{border:0;border-radius:12px;padding:11px 18px;background:var(--green);color:#fff;font-weight:650}
+.btn:hover{background:var(--green2)}
+.btn.ghost{background:var(--panel);color:var(--fg);border:1px solid var(--line);font-weight:500}
+.btn.small{padding:6px 10px;border-radius:9px;font-size:12.5px}
+.msg{font-size:13px;color:var(--red);min-height:20px;margin-top:8px}
+.chat-wrap{display:grid;grid-template-columns:1fr;gap:14px}
+.chat{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;min-height:64vh;display:flex;flex-direction:column}
+.chat-head{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px;background:linear-gradient(180deg,var(--soft),transparent)}
+.chat-head b{font-size:15px}
+.chat-head span{font-size:12px;color:var(--mut)}
+.log{padding:18px;display:flex;flex-direction:column;gap:16px;overflow:auto;max-height:62vh;min-height:42vh}
+.bubble{max-width:88%;border-radius:16px;padding:12px 14px;white-space:pre-wrap;word-wrap:break-word;position:relative}
+.bubble.user{align-self:flex-end;background:var(--green);color:#fff;border-bottom-right-radius:5px}
+.bubble.bot{align-self:flex-start;background:var(--soft);border:1px solid var(--line);border-bottom-left-radius:5px}
+.bubble .meta{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:6px;font-size:11px;color:var(--mut)}
+.bubble.user .meta{color:rgba(255,255,255,.8)}
+.pill{border:1px solid var(--line);border-radius:999px;padding:2px 7px;background:var(--panel);font-size:10.5px;color:var(--mut)}
+.pill.ok{border-color:#9bc9ad;color:var(--green)}
+.pill.warn{border-color:#e0bd7b;color:#8a5a10}
+.pill.bad{border-color:#e3a5a5;color:var(--red)}
+.answer a.cite{color:var(--green);font-weight:700;text-decoration:none}
+.sources{margin-top:12px;display:grid;gap:8px}
+.source{border:1px solid var(--line);border-radius:12px;padding:9px 11px;background:var(--panel)}
+.source a{color:var(--green);text-decoration:none;font-weight:600}
+.source .s-meta{font-size:11.5px;color:var(--mut);margin-top:2px}
+.actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.actions button{border:1px solid var(--line);background:var(--panel);color:var(--mut);border-radius:8px;padding:4px 8px;font-size:11.5px}
+.actions button:hover{color:var(--green);border-color:var(--green2)}
+.notice{margin-top:10px;padding:9px 11px;border-radius:10px;background:#fff7e8;border:1px solid #ecd3a3;color:#6b4a12;font-size:12.5px}
+@media (prefers-color-scheme:dark){.notice{background:#2a2317;border-color:#5d4a28;color:#f0d7a7}}
+.composer{border-top:1px solid var(--line);padding:12px;display:flex;gap:9px;align-items:flex-end;background:var(--panel)}
+.composer textarea{flex:1;resize:none;min-height:48px;max-height:150px;padding:12px 13px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--fg)}
+.composer textarea:focus{outline:2px solid rgba(47,139,91,.25);border-color:var(--green2)}
+.composer .send{height:48px;padding:0 18px}
+.suggestions{display:flex;gap:7px;flex-wrap:wrap;padding:0 18px 14px}
+.suggestions button{border:1px dashed var(--line);background:transparent;color:var(--mut);border-radius:999px;padding:6px 10px;font-size:12px}
+.suggestions button:hover{color:var(--green);border-color:var(--green2)}
+.foot{color:var(--mut);font-size:11.5px;padding:10px 2px 0;text-align:center}
+.typing{display:inline-flex;gap:4px;align-items:center;color:var(--mut);font-size:12.5px}
+.typing i{width:5px;height:5px;border-radius:50%;background:var(--green2);display:inline-block;animation:b 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes b{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
+@media (min-width:900px){.chat-wrap{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="top">
+    <div class="brand">
+      <div class="logo">QNE</div>
+      <div><h1>Trợ lý minh bạch QNE</h1><p>Chỉ trả lời từ dữ liệu được phép · có trích dẫn · có chuyển người phụ trách</p></div>
+    </div>
+    <div class="nav" id="nav" style="display:none">
+      <span class="who" id="who"></span>
+      <a href="/admin" id="adminLink" style="display:none">Quản trị</a>
+      <a href="/transparency">Minh bạch</a>
+      <button id="logout">Đăng xuất</button>
+    </div>
+  </header>
+
+  <section class="login" id="login">
+    <h2>Đăng nhập nội bộ</h2>
+    <p>Dán token được quản trị viên cấp một lần. Token được đổi thành cookie ký, không lưu trong trình duyệt.</p>
+    <input id="token" type="password" placeholder="Token nội bộ" autocomplete="off">
+    <button class="btn" id="connect">Kết nối</button>
+    <div class="msg" id="loginMsg"></div>
+  </section>
+
+  <main id="app" class="hidden">
+    <div class="chat-wrap">
+      <section class="chat">
+        <div class="chat-head">
+          <div><b>Hỏi về tài chính, học bổng, hồ sơ</b><div><span> Câu trả lời không thay thế xác nhận giao dịch.</span></div></div>
+          <span class="pill ok" id="modePill">sẵn sàng</span>
+        </div>
+        <div class="log" id="log"></div>
+        <div class="suggestions" id="suggestions">
+          <button>Học bổng được giải ngân khi nào?</button>
+          <button>Làm sao để đối chiếu một khoản chuyển tiền?</button>
+          <button>Quỹ hỗ trợ những tỉnh nào?</button>
+          <button>Tôi muốn gặp tình nguyện viên</button>
+        </div>
+        <form class="composer" id="form">
+          <textarea id="input" rows="1" placeholder="Nhập câu hỏi… (Enter để gửi, Shift+Enter xuống dòng)" maxlength="1000"></textarea>
+          <button class="btn send" id="send" type="submit">Gửi</button>
+        </form>
+      </section>
+      <div class="foot">Dữ liệu chỉ từ nguồn công khai và kho tri thức nội bộ đã được gắn nhãn. Nếu không đủ bằng chứng, trợ lý sẽ nói rõ và tạo phiếu chuyển người phụ trách.</div>
+    </div>
+  </main>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let conversationId = null;
+let me = null;
+let busy = false;
+
+async function api(path, opt = {}) {
+  const r = await fetch(path, {
+    credentials: 'same-origin',
+    headers: {'Content-Type': 'application/json', ...(opt.headers || {})},
+    ...opt
+  });
+  if (!r.ok) {
+    let text = '';
+    try { text = await r.text(); } catch (e) {}
+    const err = new Error(r.status + ' ' + text.slice(0, 200));
+    err.status = r.status;
+    throw err;
+  }
+  return r.json();
+}
+
+function setLogin(show) {
+  $('#login').classList.toggle('hidden', !show);
+  $('#app').classList.toggle('hidden', show);
+  $('#nav').style.display = show ? 'none' : 'flex';
+}
+
+async function boot() {
+  try {
+    me = await api('/api/session');
+    await enter();
+  } catch (e) {
+    setLogin(true);
+  }
+}
+
+async function enter() {
+  setLogin(false);
+  $('#who').textContent = `${me.name} · ${me.department}`;
+  $('#adminLink').style.display = me.department === 'admin' ? '' : 'none';
+  if (!$('#log').children.length) {
+    addBot('Xin chào. Tôi là trợ lý nội bộ của Quỹ Nuôi Em. Tôi trả lời từ kho tri thức đã được phân quyền, luôn kèm nguồn. Bạn muốn kiểm tra điều gì?', {status:'answered', mode:'rules'});
+  }
+}
+
+$('#connect').onclick = async () => {
+  $('#loginMsg').textContent = '';
+  try {
+    me = await api('/api/session', {method:'POST', body: JSON.stringify({token: $('#token').value.trim()})});
+    $('#token').value = '';
+    await enter();
+  } catch (e) {
+    $('#loginMsg').textContent = e.status === 401 ? 'Token không hợp lệ hoặc đã bị vô hiệu hoá.' : e.message;
+  }
+};
+
+$('#logout').onclick = async () => {
+  try { await api('/api/session', {method:'DELETE'}); } catch (e) {}
+  me = null; conversationId = null; $('#log').innerHTML = '';
+  setLogin(true);
+};
+
+$('#input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#form').requestSubmit(); }
+});
+$('#input').addEventListener('input', () => {
+  $('#input').style.height = 'auto';
+  $('#input').style.height = Math.min($('#input').scrollHeight, 150) + 'px';
+});
+$('#form').onsubmit = e => { e.preventDefault(); send($('#input').value); };
+
+document.querySelectorAll('#suggestions button').forEach(b => {
+  b.onclick = () => send(b.textContent);
+});
+
+function addUser(text) {
+  const el = document.createElement('div');
+  el.className = 'bubble user';
+  el.innerHTML = `<div class="meta"><span>Bạn</span></div>${esc(text)}`;
+  $('#log').appendChild(el);
+  scroll();
+}
+
+function addBot(text, data = {}) {
+  const el = document.createElement('div');
+  el.className = 'bubble bot';
+  const status = data.status || 'answered';
+  const mode = data.mode || 'rules';
+  const modeLabel = mode === 'llm' ? 'AI + nguồn' : mode === 'extractive' ? 'Trích xuất nguồn' : 'Quy tắc';
+  const statusLabel = status === 'answered' ? 'đã trả lời' : status === 'not_found' ? 'chưa đủ dữ liệu' : status === 'handoff' ? 'đã chuyển người' : status === 'refused' ? 'không hỗ trợ' : status;
+  const cls = status === 'answered' ? 'ok' : status === 'not_found' ? 'warn' : 'bad';
+  let html = `<div class="meta"><span>Trợ lý</span><span class="pill ${cls}">${esc(statusLabel)}</span><span class="pill">${esc(modeLabel)}</span></div>`;
+  html += `<div class="answer">${renderAnswer(text, data.citations || [])}</div>`;
+  if (data.handoff_id) html += `<div class="notice">Đã tạo phiếu chuyển người phụ trách <b>#${data.handoff_id}</b>. Tình nguyện viên sẽ xem lại cuộc trao đổi.</div>`;
+  if (data.reason) html += `<div class="notice">Lý do: ${esc(reasonLabel(data.reason))}</div>`;
+  if (data.citations && data.citations.length) html += renderSources(data.citations);
+  if (data.message_id) {
+    html += `<div class="actions"><button data-fb="up" data-mid="${data.message_id}">Hữu ích</button><button data-fb="down" data-mid="${data.message_id}">Chưa đúng</button><button data-handoff="1">Gặp tình nguyện viên</button></div>`;
+  }
+  el.innerHTML = html;
+  $('#log').appendChild(el);
+  el.querySelectorAll('button[data-fb]').forEach(b => b.onclick = () => feedback(b.dataset.mid, b.dataset.fb, b));
+  el.querySelectorAll('button[data-handoff]').forEach(b => b.onclick = () => send('Tôi muốn gặp tình nguyện viên để được hỗ trợ thêm.'));
+  scroll();
+}
+
+function reasonLabel(r) {
+  return ({
+    low_confidence: 'nguồn hiện có chưa đủ chắc chắn',
+    llm_insufficient: 'nguồn không trả lời trực tiếp câu hỏi',
+    no_evidence: 'không tìm thấy bằng chứng phù hợp',
+    no_citation: 'câu trả lời không truy được về nguồn',
+    unknown_citation: 'trích dẫn không có trong nguồn đã truy xuất',
+    personal_data: 'có dữ liệu cá nhân trong câu trả lời',
+    prompt_injection: 'yêu cầu thay đổi vai trò/hướng dẫn',
+    sensitive_request: 'yêu cầu dữ liệu cá nhân',
+    needs_human: 'cần người phụ trách',
+    llm_error: 'dịch vụ AI không phản hồi',
+    internal_error: 'lỗi hệ thống'
+  })[r] || r;
+}
+
+function renderAnswer(text, citations) {
+  const map = {};
+  citations.forEach((c, i) => { map[String(c.chunk_id)] = i + 1; });
+  let html = esc(text);
+  html = html.replace(/\[([0-9]+)\]/g, (m, id) => {
+    const n = map[id];
+    return n ? `<a class="cite" href="#src-${esc(id)}">[${n}]</a>` : esc(m);
+  });
+  return html.replace(/\n/g, '<br>');
+}
+
+function renderSources(citations) {
+  return `<div class="sources">` + citations.map((c, i) => {
+    const title = c.title || c.source_id || 'Nguồn';
+    const url = c.url || '';
+    const date = c.display_date || c.source_date || '';
+    const label = `${i + 1}. ${title}`;
+    return `<div class="source" id="src-${esc(c.chunk_id)}"><a href="${esc(url || '#')}" target="_blank" rel="noopener">${esc(label)}</a><div class="s-meta">${esc(c.source_type || '')}${date ? ' · ' + esc(date) : ''}${url ? ' · ' + esc(url) : ''}</div></div>`;
+  }).join('') + `</div>`;
+}
+
+function scroll() { const l = $('#log'); l.scrollTop = l.scrollHeight; }
+
+function typing(on) {
+  let el = $('#typing');
+  if (on) {
+    if (el) return;
+    el = document.createElement('div');
+    el.id = 'typing'; el.className = 'bubble bot';
+    el.innerHTML = `<span class="typing"><i></i><i></i><i></i> đang tra cứu nguồn…</span>`;
+    $('#log').appendChild(el); scroll();
+  } else if (el) el.remove();
+}
+
+async function send(text) {
+  text = (text || '').trim();
+  if (!text || busy) return;
+  if (!me) { setLogin(true); return; }
+  busy = true; $('#send').disabled = true; $('#input').value = ''; $('#input').style.height = 'auto';
+  addUser(text); typing(true);
+  try {
+    const data = await api('/api/chat', {method:'POST', body: JSON.stringify({message: text, conversation_id: conversationId})});
+    typing(false);
+    conversationId = data.conversation_id;
+    $('#modePill').textContent = data.mode === 'llm' ? 'AI + nguồn' : data.mode === 'extractive' ? 'trích xuất nguồn' : 'quy tắc';
+    addBot(data.answer, data);
+  } catch (e) {
+    typing(false);
+    if (e.status === 401) { setLogin(true); return; }
+    if (e.status === 429) addBot('Bạn gửi hơi nhanh. Vui lòng chờ một phút rồi thử lại.', {status:'refused', mode:'rules', reason:'rate_limit'});
+    else addBot('Có lỗi khi gọi trợ lý. Vui lòng thử lại hoặc bấm “Gặp tình nguyện viên”.', {status:'handoff', mode:'rules', reason:'internal_error'});
+  } finally {
+    busy = false; $('#send').disabled = false; $('#input').focus();
+  }
+}
+
+async function feedback(mid, value, btn) {
+  try {
+    await api('/api/feedback', {method:'POST', body: JSON.stringify({message_id: Number(mid), value})});
+    btn.textContent = value === 'up' ? 'Đã ghi nhận ✓' : 'Đã ghi nhận';
+    btn.disabled = true;
+  } catch (e) {
+    btn.textContent = 'Không gửi được';
+  }
+}
+
+boot();
+</script>
+</body>
+</html>

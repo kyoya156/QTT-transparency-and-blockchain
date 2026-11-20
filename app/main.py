@@ -1,17 +1,21 @@
 import pathlib
 
 from fastapi import Depends, FastAPI
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from . import models
-from .api import admin as admin_api, search as search_api, tickets as tickets_api
+from .api import (admin as admin_api, chat as chat_api, search as search_api, session as session_api,
+                  tickets as tickets_api)
 from .db import engine, get_db
 from .migrations import init_db
 
 app = FastAPI(title="Internal knowledge assistant")
+app.include_router(session_api.router)
 app.include_router(search_api.router)
+app.include_router(chat_api.router)
 app.include_router(admin_api.router)
 app.include_router(tickets_api.router)
 
@@ -40,4 +44,12 @@ def health(db: Session = Depends(get_db)):
 # Trang admin (HTML tinh): gan nhan du lieu/cong cu, nguoi dung, nhat ky.
 _STATIC = pathlib.Path(__file__).parent / "static"
 _STATIC.mkdir(exist_ok=True)
+
+
+@app.get("/", include_in_schema=False)
+@app.get("/chat", include_in_schema=False)
+def chat_page():
+    return FileResponse(_STATIC / "chat.html")
+
+
 app.mount("/admin", StaticFiles(directory=str(_STATIC), html=True), name="admin")
