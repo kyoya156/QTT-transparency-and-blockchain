@@ -1,6 +1,6 @@
 # Project state (living file)
 
-Last updated: 2026-11-20 by Claude Code session. Newest facts win. Keep this short; move old detail to the log.
+Last updated: 2026-11-21 by Claude Code session. Newest facts win. Keep this short; move old detail to the log.
 
 ## Update protocol (every agent, end of every session)
 1. Update "Now", "Done", "Next" and "Decisions" so a cold reader is current.
@@ -44,11 +44,14 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 3. Kaggle loader must use `records.link` too (same seq/prev/balance chain, `source_hash` = sha256 of the source row) and set `OPENING_BALANCE` first.
 4. Measure 4 corrections: agree the correction record shape (`corrects` + reason + adjusting amount), then build. Measure 6: read `Recorded` events so every chain entry must have a row; schedule the nightly run.
 5. Merge `verify-endpoint` into `main` once the owner has reviewed it.
+6. Build the 2026-11-21 decisions (before the history import): drop `donor_name_hash` from the record, `UNLINKED` donor ID, correction records (after the shape is agreed), public monthly totals endpoint, loader anchoring without a per-day count.
 
 ## Decisions
-- Donor name in the record (team, 2026-11-20): salted hash only (`donor_name_hash`), so full records + salts can be public (option A) without revealing names. Replaces the readable name inside the record from earlier the same day.
+- `REFID_SECRET` custody (owner, 2026-11-21): Hung holds the master copy + an offline backup (password manager or encrypted USB; never repo or chat) and decides which machines get it. Working copy on the machine running listener / verify / nightly (`chain/.env` or DB). Never changed. Not the same as the per-record salt (public, in `ledger_records`).
+- Team notes in `reminder.md` (owner, 2026-11-21), not yet built: memo codes ON HOLD. Running balance computed over the whole history, live records continue from the last history balance. Per-day row count on chain off for now (v3 reverts on `count == 0`, so this needs a workaround or v4, see Open questions). Monthly totals + cash flows on the public dashboard: yes. `REFID_SECRET` in the DB, with a backup DB. Donor name removed from the record (identity via donor ID only). Every donor needs an account with a unique donor ID. A donation without one is still recorded and stamped, marked `UNLINKED` (counts in the balance). Later either: refund it (money-out record pointing to it), or, if the donor makes an account, a correction record pointing to it with the donor ID. The original stays on chain. Depends on the measure 4 correction shape.
+- Donor name in the record (team, 2026-11-20; SUPERSEDED 2026-11-21 by "no name, donor ID only"): salted hash only (`donor_name_hash`), so full records + salts can be public (option A) without revealing names. Replaces the readable name inside the record from earlier the same day.
 - Measures 1-6 agreed (team, 2026-11-19); measure 5 sub-choices built as proposed (resend = tamper check, startup rebuild from stored original, 10 min late, audit_log + flag). Donor name (owner, 2026-11-20): plain text, no diacritics, upper case, readable only via permissions (replaces "accents kept"). Opening balance: `OPENING_BALANCE` in chain/.env, 0 for now.
-- Donor names (owner, 2026-11-18): full name as given, e.g. `Phạm Thanh Hùng`, or `Anonymous`. Off chain only (hash on chain), readable via `bank_transaction` label. Names are NFC-normalised and spaces collapsed so the same visible name always hashes the same; case and accents kept as given (bank feeds often send `PHAM THANH HUNG`). Open: donor consent wording for storing full names (Vietnam personal data rules, Decree 13/2023).
+- Donor names (owner, 2026-11-18; SUPERSEDED 2026-11-21): full name as given, e.g. `Phạm Thanh Hùng`, or `Anonymous`. Off chain only (hash on chain), readable via `bank_transaction` label. Names are NFC-normalised and spaces collapsed so the same visible name always hashes the same; case and accents kept as given (bank feeds often send `PHAM THANH HUNG`). Open: donor consent wording for storing full names (Vietnam personal data rules, Decree 13/2023).
 - Record shape (owner, 2026-11-18), in `transparency/records.py`: money in = amount + currency + donor_name (`Anonymous` allowed) + donor_id + bank time; money out = amount + currency + recipient_id + recipient_type (`unassigned` until Dong's cleaned data decides) + bank time. Bank time is separate from block time.
 - Public vs hashed on chain (client, 2026-11-18, replaces the v2 choice): hash everything. On chain only refId (HMAC), leaf, block time, and per day root + count. Readable records only via the AI app's department permissions (table labels `bank_transaction` / `disbursement`), with audit. Public verify (`transparency/api.py`) stays open: it only confirms data the caller already has.
 - UNVERIFIED with client: whether the per-day `count` on chain is acceptable (it shows how many transactions a history day had). Drop it in v3 before deploy if not.
@@ -60,11 +63,19 @@ Team docs for everyone: `reminder.md` (who does what), this file, `AGENTS.md`. A
 - Old data dropped. Test data comes from a Kaggle transactions file.
 
 ## Open questions
+- Per-day count off (2026-11-21): `anchorBatch` reverts on count 0. Options: one root for the whole history (count = total rows), or v4. The count is already visible through `GET /public/records`, so hiding it on chain hides nothing.
+- `UNLINKED` donations: how long before a refund? Who reviews them? How do we prove a new account owns the donation (bank reference + amount + time)?
+Might need to wait until someone review the flagged transaction and do something about it. The original stays on chain; a refund or correction record points to it.(but how do we implement the correction or how does it work i still cannot imagine it)
+  Answer: worked examples (link later, refund, wrong amount) in `docs/MEASURES.md`, measure 4, "How a correction works".
+- If the `REFID_SECRET` working copy goes in the DB, anyone with DB access gets it too. Backup must cover DB + salts.
 - Bank feed research (2026-11-19, owner has MB + VCB accounts; none tested yet): SePay docs list MBBank among banks whose money out syncs via API; VCB API only for business/household accounts, personal VCB via SMS (UNVERIFIED in practice). Casso: MB official API, VCB via RPA (Standard plan); money-out support not stated. payOS: no evidence it sees money out. Leaning: source-agnostic adapter (SePay first) + bank statement import for reconciliation.
 - Webhook service: payOS, SePay or Casso. payOS docs do not say whether its webhook covers all bank activity or only payOS links. SePay reports money in and out only for some banks. Confirm bank and service with the client.
-- Where `REFID_SECRET` lives; encryption of stored records at rest.
+- Encryption of stored records at rest. (Where `REFID_SECRET` lives: decided 2026-11-21, see Decisions.)
 
 ## Log (newest first)
+- 2026-11-21 | Claude Code | docs updated for 2026-11-21 decisions; correction examples in MEASURES (measure 4) | reminder.md, docs/MEASURES.md, docs/TRANSPARENCY.md, chain/README.md, docs/STATE.md
+- 2026-11-21 | Claude Code | decisions: UNLINKED donations (refund or correction later), REFID_SECRET custody | docs/STATE.md
+- 2026-11-21 | Claude Code | recorded owner's reminder.md notes as decisions + open questions (no code change) | docs/STATE.md
 - 2026-11-20 | Claude Code | donor name hidden in the record (salted hash), public GET /public/records for the dashboard, shared transparency/db.py, tests | transparency/records.py, transparency/listener.py, transparency/api.py, transparency/db.py, transparency/guard.py, transparency/nightly.py, app/models.py, app/api/ledger.py, tests/test_records.py, tests/test_listener.py, tests/test_integrity.py, tests/test_public_api.py, docs/MEASURES.md, docs/STATE.md, reminder.md
 - 2026-11-20 | Claude Code | reminder: listener done, list of what is still missing on the blockchain side (backups, REFID_SECRET, hosting, gas alert, loader, Basescan verify, nightly events + schedule, dashboard data) | reminder.md, docs/STATE.md
 - 2026-11-20 | Claude Code | owner live test of measures 1-6 passed (2 simulated + 1 real transfer, nightly ok) | docs/STATE.md

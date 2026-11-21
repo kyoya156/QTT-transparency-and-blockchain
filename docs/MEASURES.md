@@ -96,9 +96,9 @@ Tests (`tests/test_listener.py`): resend unchanged stamps; resend after a databa
 |---|---|---|
 | `seq` | 1 | 1, 2, 3 ... one counter for in and out |
 | `prev` | 1 | leaf of record `seq - 1`; record 1 has `GENESIS` (0x00...00) |
-| `balance` | 2 | running balance after this record: `OPENING_BALANCE` (chain/.env, 0 for tests) +in -out |
+| `balance` | 2 | running balance after this record: `OPENING_BALANCE` (chain/.env, 0 for tests) +in -out. Decided 2026-11-21: computed over the whole history; the history loader runs first, live records continue from its last balance |
 | `source_hash` | 3 | sha256 of the exact signed SePay message; the message and its signature headers are kept in `ledger_records.source_raw` / `source_auth` (never shown by the records API: the memo holds sender name + account) |
-| `donor_name_hash` | — | salted hash of the donor name, `records.name_hash`. The readable name (plain, no diacritics, upper case: `Phạm Thanh Hùng` -> `PHAM THANH HUNG`) and its own `name_salt` stay in `ledger_records.donor_name` / `name_salt`, readable only through department permissions (team, 2026-11-20) |
+| `donor_name_hash` | — | salted hash of the donor name, `records.name_hash`. The readable name (plain, no diacritics, upper case: `Phạm Thanh Hùng` -> `PHAM THANH HUNG`) and its own `name_salt` stay in `ledger_records.donor_name` / `name_salt`, readable only through department permissions (team, 2026-11-20). **To be removed (decided 2026-11-21, not built):** no name in the record, donor ID only (`UNLINKED` if none) |
 
 The chain still holds one fingerprint per record (option A, contract v3 unchanged).
 
@@ -109,6 +109,39 @@ The chain still holds one fingerprint per record (option A, contract v3 unchange
 `transparency/guard.py`, installed by the listener and by `app.migrations.init_db`. Database triggers (SQLite and Postgres) refuse UPDATE, DELETE and TRUNCATE on `ledger_records`. One exception: the stamp columns (`chain_tx`, `stamped_at`, `stamp_late`) may be filled once, while `chain_tx` is empty, with nothing else changing. Postgres trigger is UNVERIFIED (no Postgres in tests); check with one UPDATE on the real database.
 
 **Owner's question: if a record needs correcting, what about the chain?** The chain entry stays forever; nothing on chain can be edited or removed. A correction is a **new** record (next `seq`, its own fingerprint on chain) that names the record it corrects and carries the adjusting amount, so the running balance stays right. The dashboard shows the old record as "corrected by #N". Both are visible, so nobody can quietly change history. Not built yet: needs a `corrects` field and a reason; agree the shape first.
+
+### How a correction works (proposal, 2026-11-21)
+
+Nothing is ever edited. Every change is one more record at the end of the chain of records, with its own `seq`, `prev`, balance and stamp. It names the record it is about in `corrects`.
+
+Proposed extra fields: `kind` (`in` / `out` / `correction`), `corrects` (the `seq` of the old record), `reason` (short text), plus whatever changes (a donor ID, or an adjusting amount).
+
+**Example 1: donation without a donor ID, donor makes an account later**
+
+| seq | kind | amount | donor_id | corrects | reason | balance |
+|---|---|---|---|---|---|---|
+| 41 | in | 500,000 | `UNLINKED` | | | 10,500,000 |
+| ... | | | | | | |
+| 57 | correction | 0 | D-017 | 41 | donor account linked | 12,300,000 (unchanged) |
+
+Record 41 stays exactly as stamped. The dashboard shows it as "linked to D-017 by #57". Anyone can check that both 41 and 57 match the chain, and that 57 came after 41.
+
+**Example 2: nobody claims it, so we refund**
+
+| seq | kind | amount | recipient | corrects | reason | balance |
+|---|---|---|---|---|---|---|
+| 41 | in | 500,000 | | | | 10,500,000 |
+| 60 | out | 500,000 | refund | 41 | unlinked, returned | 11,800,000 (-500,000) |
+
+The refund is real money going out, so it goes through the bank and the SePay feed like any money out; the record just also names 41.
+
+**Example 3: a wrong amount (e.g. history import typo)**
+
+Record 12 says 1,000,000 but the bank statement says 100,000. Record 80: `correction`, amount -900,000, `corrects` 12, reason "statement shows 100,000". The balance after 80 drops by 900,000, so it agrees with the bank again.
+
+**What the nightly check adds:** every `corrects` points to an existing, earlier record; a record is linked or refunded at most once; balances still add up with corrections included.
+
+Still to agree: how long before an `UNLINKED` donation is refunded, who may write corrections (staff entry needs a login + audit log, since it is not from the bank feed), and how a new account proves a donation is theirs.
 
 ## Measure 6: nightly check (built 2026-11-20)
 

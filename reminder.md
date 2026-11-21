@@ -1,6 +1,6 @@
 # Reminders: who does what
 
-Last updated: 2026-11-19. Task details live in `docs/STATE.md` ("Next"). How the ledger works: `docs/explainer.html`.
+Last updated: 2026-11-21. Task details live in `docs/STATE.md` ("Next"). How the ledger works: `docs/explainer.html`.
 
 ## For team discussion (2026-11-18)
 
@@ -8,7 +8,7 @@ Last updated: 2026-11-19. Task details live in `docs/STATE.md` ("Next"). How the
 - **Who decides:** the "client" is a teacher advising us. The team decides; we ask the teacher when something is unclear.
 - **No third-party audits.** Integrity comes only from things we build. Data feeds (payOS, SePay, Casso) are fine as sources.
 - **Hash only on chain** (contract v3, live). Readable records stay in our database, readable only by departments the admin allows (`bank_transaction` for money in, `disbursement` for money out), every read logged.
-- **Full donor names**, e.g. `Phạm Thanh Hùng`, or `Anonymous`. Kept exactly as the source gives them (bank feeds often send `PHAM THANH HUNG`); Unicode is normalised so the same visible name always hashes the same.
+- **No donor names in the record** (2026-11-21, replaces "full donor names"). Donors are identified only by a donor ID from their account; donations without one are recorded as `UNLINKED` (see Questions settled below).
 - **History first, then live:** history is stamped as one Merkle root per day; each new transaction is stamped on its own within seconds of the payOS notification (not daily).
 - **What the chain gives us:** a record that is edited or deleted in our database after stamping no longer matches the chain, so it can be detected. It does not stop the edit, and it does not prove the record is true.
 
@@ -24,6 +24,7 @@ agreed to option 1
 2. [x] **Running balance** in every record. A wrong amount makes all later balances disagree with the real account. Needs the opening balance and rows in time order. **Test 2026-11-19: MB via SePay sends no balance**, so we would compute it ourselves from an opening balance (weaker than the bank stating it; the bank statement import can check it). **Built 2026-11-20** (`docs/MEASURES.md`).
 agreed to option 2 but show donor ID, amount, date, and running balance , full name(no diacrytic = plain text) and HASH original message (from 3.) 
 in simpler term on record on blockchain (donorID + amount + date + running balance + hash of full name + hash of original message)
+**Superseded 2026-11-21:** no name (or name hash) in the record, donor ID only.
 How it reaches the chain (agreed 2026-11-19, "option A"): the chain keeps **one fingerprint of the whole record** (contract v3 unchanged). The readable fields are shown on the dashboard together with the record's salt, so anyone can recompute the fingerprint and compare it with the chain. Public fields are not hashed on their own, but they are inside the fingerprint, so any edit is detected. Rejected "option B" (public fields stored on chain directly): needs contract v4, nothing could ever be removed or corrected out of view, history day roots would not work.
 3. [x] **Fingerprint of the original Sepay message** in live records, with the message stored, after checking Sepay's signature. Shows the record came from Sepay, not typing. **Built 2026-11-20** (`docs/MEASURES.md`).
 agreed save a database version and another hashed version on the record on chain
@@ -41,12 +42,14 @@ Suggested order: 1-3 now (before Dong's data), then 4, 6, 5, 8.
 
 ### Questions to settle
 - [ ] **Bank feed: SePay as the first source?** Live test 2026-11-19 on Hung's MB account (SePay free plan, direct bank link): money in and out both arrived within ~15 s. MB money out is covered, no staff entry needed. Plan: one adapter per source (SePay first, Casso if needed) + bank statement import (CSV/Excel) as the fallback for any bank. Vietcombank personal only via SMS (not tested).
-- [ ] **Memo codes for donors and recipients?** The bank sends no sender/recipient fields, only free memo text. Proposal: SePay extracts a code from the memo by prefix. Money out: staff write the recipient code, e.g. `CHI R023`; no code = `unassigned`. Money in: a donation QR pre-fills a donor code; no code = `Anonymous`. We do not guess names from memo text.
-- [ ] **Running balance (measure 2):** compute it ourselves from an opening balance, or drop it? (The bank feed does not provide it.)
-- [ ] **Per-day row count on chain:** keep (shows how many history rows a day had) or drop?
-- [ ] **Publish monthly totals** (total in, total out, closing balance; no personal data) on the dashboard?
-- [ ] **Where `REFID_SECRET` lives** long term, and backups for the database and salts (losing a salt means that record can never be checked again).
-- [ ] **Donor consent wording** for storing full names (Vietnam Decree 13/2023), with the `Anonymous` option.
+- [ ] **Memo codes for donors and recipients?** The bank sends no sender/recipient fields, only free memo text. Proposal: SePay extracts a code from the memo by prefix. Money out: staff write the recipient code, e.g. `CHI R023`; no code = `unassigned`. Money in: a donation QR pre-fills a donor code; no code = `Anonymous`. We do not guess names from memo text. **On hold (2026-11-21).** Donor IDs arrive through this, so it is needed before donations can be linked automatically.
+- [x] **Running balance (measure 2):** we compute it over the whole history. The history loader starts from the opening balance; live records continue from the last history balance.
+- [x] **Per-day row count on chain:** off for now, can be added later. Contract v3 refuses count 0, so: one root for the whole history (count = total rows) or a v4 contract. The count shows on the public dashboard anyway.
+- [x] **Publish monthly totals** (total in, total out, closing balance; no personal data): yes, with the record list and cash flows on the public dashboard. Needs a summary endpoint.
+- [x] **Where `REFID_SECRET` lives:** Hung holds the master copy + an offline backup (password manager or encrypted USB) and decides which machines get it. Working copy in the DB (or `chain/.env`) on the machine running the listener, verify and nightly check. Never changed. A backup DB is needed (records + salts; a lost salt means that record can never be checked again). Not the same as the salt: one secret for the whole system vs one public salt per record.
+- [x] **Donor names:** removed from the record; donors are identified only by donor ID. Consent wording (Decree 13/2023) is still needed for the account sign-up, where names would live.
+- [x] **Donor accounts:** every donor makes an account and gets a unique donor ID, used in every donation. A donation without a donor ID is still recorded and stamped, marked `UNLINKED` (the money did arrive, so it counts in the balance). Later, either a correction record links it to the donor's ID once they make an account, or a refund (money-out record) points to it. The original stays on chain. How a correction works, with examples: `docs/MEASURES.md`, measure 4.
+  Open: how long before a refund, who reviews `UNLINKED` donations, how a new account proves the donation is theirs (bank reference + amount + time?).
 
 ### Paused topics (come back later)
 - **Donor traces back to their own transaction** (paused 2026-11-19). Today a donor cannot: checking needs record + salt (ours only) and refId needs `REFID_SECRET`. Options discussed:
@@ -68,14 +71,14 @@ Suggested order: 1-3 now (before Dong's data), then 4, 6, 5, 8.
 - [x] Verify endpoint (`transparency/api.py`).
 - [x] SePay test receiver + live test on MB (in and out).
 - [x] Webhook listener with measures 1-6; live test passed 2026-11-20 (2 simulated + 1 real transfer, nightly check ok).
-- [ ] Decide where `REFID_SECRET` is stored.
+- [x] Decide where `REFID_SECRET` is stored (2026-11-21: Hung holds master + offline backup).
 
 ### Still missing on the blockchain side (2026-11-20)
 Besides the team decisions (memo codes, correction shape) and Dong's data:
 
 Needed before a real demo:
 1. [ ] **Backups of the database and salts.** A lost salt means that record can never be checked again. Nightly copy of the database to a second place.
-2. [ ] **Where `REFID_SECRET` lives.** Lost or changed = no existing record can be found on chain again.
+2. [x] **Where `REFID_SECRET` lives** (decided 2026-11-21, see above). Lost or changed = no existing record can be found on chain again.
 3. [ ] **Stable home for the listener.** Today: your PC + quick tunnel, URL changes on restart (SePay must be updated each time). Named Cloudflare tunnel or a small server.
 4. [ ] **Low-balance alert for the listener wallet** (~0.0003 test ETH). Empty = stamping stops quietly; rows wait unstamped.
 5. [ ] **History loader** (daily roots + a proof per row). Can start from a guessed format, adjust when Dong's file arrives.
@@ -98,11 +101,11 @@ need example cases
 Builds a second blockchain version in parallel, so the team can still submit if one fails.
 - [ ] Keep the backup on its own branch so the two lines do not overwrite each other.
 - [ ] Use the same cleaned dataset from Dong, so either version can be demoed with the same data.
-- [ ] Use the same record fields (`transparency/records.py`): in = amount + donor full name (or Anonymous) + donor ID + bank time; out = amount + recipient ID + recipient type + bank time. Only hashes go on chain, nothing readable. If the team adopts measures 1-3 above, the record gains sequence, previous link, balance and payOS message hash.
+- [ ] Use the same record fields (`transparency/records.py`): in = amount + donor ID (or `UNLINKED`) + bank time, no name (2026-11-21); out = amount + recipient ID + recipient type + bank time. Only hashes go on chain, nothing readable. If the team adopts measures 1-3 above, the record gains sequence, previous link, balance and payOS message hash.
 
 ## Dong: dataset
 - [ ] Clean it: fix or drop bad rows, consistent date and amount formats, mark each row as income or expense.
-- [ ] Cleaned file must give, per row: amount, bank time (with timezone), direction (in/out), donor ID + full name for money in (keep names exactly as in the source, accents and case included; blank = Anonymous), recipient ID for money out. Recipient type can stay blank for now. Use codes for recipients, never children's real names.
+- [ ] Cleaned file must give, per row: amount, bank time (with timezone), direction (in/out), donor ID for money in (blank = `UNLINKED`; no names needed, 2026-11-21), recipient ID for money out. Recipient type can stay blank for now. Use codes for recipients, never children's real names.
 - [ ] If the team adopts the running balance (measure 2): rows sorted by bank time, plus the opening balance before the first row if the dataset has one.
 - [ ] Share the cleaned file and a short list of columns (name, type, meaning). The loader (STATE.md step 3) and the dashboard both read from it.
 - [ ] Keep the raw data out of git (`data/` is git-ignored). Note the Kaggle link and licence.

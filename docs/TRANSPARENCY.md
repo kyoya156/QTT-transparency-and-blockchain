@@ -4,7 +4,7 @@ How the pieces fit, for developers. Plain-language version for the team: `docs/e
 
 ## Flows
 - **Live (built, testnet):** SePay webhook -> `listener.py` (check signature, build record, new salt, save record + salt, reply, stamp `record(refId, leaf)`, save tx hash). Setup: root `README.md`, "Bank feed".
-- **History (waiting for Dong's file):** cleaned file -> records -> one salted Merkle root per day -> `anchorBatch(day, root, count)`.
+- **History (waiting for Dong's file):** cleaned file -> records -> one salted Merkle root per day -> `anchorBatch(day, root, count)`. Per-day count off for now (team, 2026-11-21); v3 refuses count 0, so one root for the whole history or v4 (see `chain/README.md`). Running balance runs over the whole history; live records continue from its last balance.
 - **Check (built):** `api.py` `POST /verify` with record + salt -> match + block time. Logged-in users: `GET /api/ledger/records/{id}?check_chain=true` (`app/api/ledger.py`).
 
 ## Modules

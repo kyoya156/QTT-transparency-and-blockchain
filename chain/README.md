@@ -11,7 +11,7 @@ Contract v3, **hash only**. Nothing readable goes on chain; readable records sta
 
 - `refId` = HMAC(`REFID_SECRET`, source transaction id), so bank ids are not public. A second write for the same `refId` reverts (`AlreadyRecorded`); the Python bridge checks `entries` first and returns `exists` on webhook retries.
 - `leaf` = salted hash of the full record (`transparency/merkle.py`). The salt stays off chain; losing it means that record can never be checked.
-- Everything on chain is permanent. The per-day `count` shows how many history rows a day had (open question in `reminder.md`).
+- Everything on chain is permanent. The per-day `count` shows how many history rows a day had. Team decision (2026-11-21): count off for now. `anchorBatch` reverts on `count == 0`, so the loader must either anchor one root for the whole history (count = total rows) or wait for a v4 contract.
 
 ## Run
     npm install
